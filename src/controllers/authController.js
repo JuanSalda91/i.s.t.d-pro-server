@@ -284,3 +284,80 @@ exports.login = async (req, res) => {
 // ==========================================
 // CONTROLLER: Refresh Token
 // ==========================================
+/**
+ * ROUTE: POST /api/auth/refresh
+ * 
+ * PURPOSE: Get a new access token using refresh token
+ * 
+ * REQUEST BODY:
+ * {
+ *   "refreshToken": "eyJhbGc..." (the refresh token from login)
+ * }
+ * 
+ * SCENARIO:
+ * - User's access token expires after 7 days
+ * - But refresh token lasts 30 days
+ * - Instead of making user log in again, we issue a new access token
+ * - This way user stays logged in for up to 30 days
+ * 
+ * WHAT HAPPENS:
+ * 1. Verify the refresh token is valid
+ * 2. Extract user ID from token
+ * 3. Generate new access token
+ * 4. Return new token to frontend
+ * 
+ * RESPONSE (Success - 200):
+ * {
+ *   "success": true,
+ *   "token": "eyJhbGc..." (new access token)
+ * }
+ */
+exports.refreshToken = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        // ==========================================
+        // VALIDATION
+        // ==========================================
+        if (!refreshToken) {
+            return res.status(400).json({
+                success: false,
+                message: 'Refresh token is required',
+            });
+        }
+        // ==========================================
+        // VERIFY REFRESH TOKEN
+        // ==========================================
+        /**
+         * jwt.verify(token, secret)
+         * 
+         * WHAT: Verifies the token is:
+         * - Not tampered with (signature is valid)
+         * - Not expired
+         * 
+         * RETURNS: The payload (user ID) if valid
+         * THROWS: Error if invalid or expired
+         */
+        const decoded = jwt.verify(refreshToken, process.env.JWT-REFRESH_SECRET);
+        // ==========================================
+        // GENERATE: New Access Token
+        // ==========================================
+        /**
+         * Using the user ID from the refresh token,
+         * we generate a brand new access token
+         * This new token is valid for another 7
+         */
+        const token = generateToken(decoded.id);
+        // ==========================================
+        // RESPONSE: Success
+        // ==========================================
+        res.status(200).json({
+            success: true,
+            token,
+        });
+    } catch (error) {
+        res.status(401).json({
+            success: false,
+            message: 'invalid or expired refresh token',
+        });
+    }
+};
