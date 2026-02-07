@@ -73,3 +73,51 @@ const userSchema = new mongoose.Schema({
 },
     { timestamps: true }
 );
+
+// ==========================================
+// MIDDLEWARE: Hash Password Before Saving
+// ==========================================
+
+/**
+ * THIS RUNS: Before any save operation on the User model
+ * 
+ * PURPOSE: Convert plain text password to hashed password
+ * 
+ * WHY THIS IS CRITICAL:
+ * ❌ WRONG: Store "password123" in database
+ *           If database is hacked, all passwords are compromised
+ * 
+ * ✅ RIGHT: Store hashed version like "$2a$10$..." 
+ *           If database is hacked, passwords are useless
+ *           (hashing is one-way: can't reverse it back)
+ * 
+ * HOW BCRYPT WORKS:
+ * 1. Takes plain text password: "myPassword123"
+ * 2. Creates a hash: "$2a$10$n9ibQQMUc33blF3skV..."
+ * 3. When user logs in, we hash their input and compare with stored hash
+ * 4. Even if hacker has the hash, they can't reverse it
+ */
+userSchema.pre('save', async function (next) { // next is a callback to move to the next middleware or save operation
+    // Only hash password if it's being modified (not on every save)
+    if (!this.isModified('password')) { // the "this" keyword refers to the user document being saved
+        return next();
+    }
+    try {
+        /**
+         * bcrypt.genSalt(10)
+         * Creates a "salt" with 10 rounds of hashingHigher number = more secure but slower
+         * 10 is industry standard
+         */
+        const salt = await bcrypt.genSalt(10);
+        
+        /**
+         * bcrypt.hash()
+         * Hashes the password with the salt
+         * Stores the hashed version in "this.password"
+         */
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
