@@ -121,3 +121,27 @@ userSchema.pre('save', async function (next) { // next is a callback to move to 
         next(error);
     }
 });
+
+// ==========================================
+// METHOD: Compare Password for Login
+// ==========================================
+
+/**
+ * FUNCTION: matchPassword
+ * PURPOSE: Compare plain text password with hashed password
+ * WHEN USED: During login verification
+ * HOW:
+ * 1. User enters: "myPassword123"
+ * 2. We hash it with bcrypt
+ * 3. Compare hashed version with what's stored in DB
+ * 4. If they match, password is correct
+ * RETURNS: true if password matches, false if not
+ * SECURITY: bcrypt.compare() is safe against timing attackas
+ * (it takes the same time wheter password is right or worng,
+ * so hackers can't use timing to guess passwords)
+ */
+userSchema.methods.matchPassword = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+};
+
+module.exports = mongoose.model('User', userSchema);
