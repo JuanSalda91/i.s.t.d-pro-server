@@ -29,7 +29,7 @@ const jwt = require('jsonwebtoken');
 */
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '5d', // Toekn will expire in 5 days (adjust as needed)
+        expiresIn: '7d', // Toekn will expire in 7 days (adjust as needed)
     });
 };
 
@@ -280,3 +280,7 @@ exports.login = async (req, res) => {
         });
     }
 };
+
+// ==========================================
+// CONTROLLER: Refresh Token
+// ==========================================
