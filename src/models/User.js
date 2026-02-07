@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
      * REQUIRED: Yes
      * MINLENGTH: 6 characters for basic security
      * SELECT: false - important! This means password is NOT returned by default when we query users (for security reasons)
-     * WHY SELECT FALSE: We can never want to accidentally send passwords to the frontend. Only when we specifically need it (for log in verification)
+     * WHY SELECT FALSE: We never want to accidentally send passwords to the frontend, only when we specifically need it (for loign verification)
      */
     password: {
         type: String,
