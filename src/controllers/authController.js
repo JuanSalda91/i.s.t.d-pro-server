@@ -164,3 +164,119 @@ exports.register = async (req, res) => {
         });
     }
 };
+
+// ==========================================
+// CONTROLLER: Login User
+// ==========================================
+
+/**
+ * ROUTE: POST /api/auth/login
+ * 
+ * PURPOSE: Authenticate user and issue JWT token
+ * 
+ * REQUEST BODY:
+ * {
+ *   "email": "juan@example.com",
+ *   "password": "securePassword123"
+ * }
+ * 
+ * WHAT HAPPENS:
+ * 1. Validate email and password provided
+ * 2. Find user in database by email
+ * 3. Compare provided password with stored hashed password
+ * 4. If match, generate JWT tokens
+ * 5. Return tokens and user data
+ * 
+ * ERROR CASES:
+ * - Missing email or password → 400 error
+ * - User not found → 401 unauthorized
+ * - Password doesn't match → 401 unauthorized
+ * 
+ * RESPONSE (on success - 200):
+ * {
+ *   "success": true,
+ *   "token": "eyJhbGc...",
+ *   "refreshToken": "eyJhbGc...",
+ *   "user": { ... }
+ * }
+ */
+exports.login = async (req, res) => {
+    try {
+        const {email, password } = req.body;
+        // ==========================================
+        // VALIDATION
+        // ==========================================
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide email and password',
+            });
+        }
+        // ==========================================
+        // FIND USER
+        // ==========================================
+        /**
+         * .select('+password')
+         * 
+         * Why needed?
+         * Remember: userSchema has password with select: false
+         * This means by default, password is NOT included in queries
+         * (for security - we never want to accidentally expose passwords)
+         * 
+         * For login, we NEED the password to compare with what user entered
+         * So we explicitly ask Mongoose to include it with select('+password')
+         */
+        const user = await User.findOne({ email }).select('+password');
+        // Check if the user exists
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials',
+            });
+        }
+        // ==========================================
+        // VERIFY PASSWORD
+        // ==========================================
+        /**
+         * user.matchPassword(password)
+         * 
+         * This calls the method we defined in the User model
+         * It uses bcrypt.compare() to safely compare:
+         * - Plain text password user entered
+         * - Hashed password stored in database
+         * 
+         * Returns true if they match, false if not
+         */
+        const isMatch = await user.matchPassword(password);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'invalid credentials',
+            });
+        }
+        // ==========================================
+        // GENERATE: Tokens
+        // ==========================================
+        const token = generateToken(user._id);
+        const refreshToken = generateRefreshToken(user._id);
+        // ==========================================
+        // RESPONSE: Success
+        // ==========================================
+        res.status(200).json({
+            success: true,
+            token,
+            refreshToken,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
