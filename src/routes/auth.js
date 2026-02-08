@@ -52,7 +52,49 @@ const {
  *   }
  * }
  */
-router.post('register', register);
+router.post('/register', register);
+
+/**
+ * ROUTE: POST /api/auth/login
+ * 
+ * PURPOSE: Authenticate user with email and password
+ * 
+ * FLOW IN APPLICATION:
+ * 1. User clicks "Login" on frontend
+ * 2. Enters: email, password
+ * 3. Frontend sends POST to /api/auth/login
+ * 4. Backend verifies credentials
+ * 5. Returns JWT token
+ * 6. Frontend stores token and logs user in
+ * 
+ * EXAMPLE REQUEST (in Postman):
+ * POST http://localhost:5000/api/auth/login
+ * Content-Type: application/json
+ * 
+ * {
+ *   "email": "juan@istdpro.com",
+ *   "password": "MySecurePassword123"
+ * }
+ * 
+ * EXAMPLE RESPONSE (200 OK):
+ * {
+ *   "success": true,
+ *   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+ *   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+ *   "user": {
+ *     "id": "65a1fd98f66d453210cde123",
+ *     "name": "Juan Salda",
+ *     "email": "juan@istdpro.com",
+ *     "role": "admin"
+ *   }
+ * }
+ * 
+ * ERROR RESPONSES:
+ * - 400: Missing email or password
+ * - 401: Invalid email or password (user not found or wrong password)
+ * - 500: Server error
+ */
+router.post('/login', login);
 
 /**
  * ROUTE: POST /api/auth/refresh
@@ -86,7 +128,7 @@ router.post('register', register);
  * - 401: Invalid or expired refresh token
  * - 500: Server error
  */
-router.post('refresh', refreshToken);
+router.post('/refresh', refreshToken);
 
 /**
  * ==========================================
