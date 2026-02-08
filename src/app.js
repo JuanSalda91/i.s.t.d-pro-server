@@ -107,7 +107,7 @@ app.use((req, res) => {
 });
 
 /**
- * GLOBAL ERRIR HANDLER
+ * GLOBAL ERROR HANDLER
  * 
  * WHAT: Catches ALL errors thrown in the application
  * WHY: Prevents app from crashing, provides consistent error format
