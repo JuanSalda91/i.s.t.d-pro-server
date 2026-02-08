@@ -113,7 +113,7 @@ app.use((req, res) => {
  * WHY: Prevents app from crashing, provides consistent error format
  * HOW: Express runs error handlers when error is passed
  */
-app.use((err, req, next) => {
+app.use((err, req, res, next) => {
     console.error('Error:', err.message);
     res.status(err.status || 500).json({
         success: false,
