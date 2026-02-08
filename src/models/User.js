@@ -97,10 +97,10 @@ const userSchema = new mongoose.Schema({
  * 3. When user logs in, we hash their input and compare with stored hash
  * 4. Even if hacker has the hash, they can't reverse it
  */
-userSchema.pre('save', async function (next) { // next is a callback to move to the next middleware or save operation
+userSchema.pre('save', async function () { // next is a callback to move to the next middleware or save operation
     // Only hash password if it's being modified (not on every save)
     if (!this.isModified('password')) { // the "this" keyword refers to the user document being saved
-        return next();
+        return;
     }
     try {
         /**
@@ -116,9 +116,8 @@ userSchema.pre('save', async function (next) { // next is a callback to move to 
          * Stores the hashed version in "this.password"
          */
         this.password = await bcrypt.hash(this.password, salt);
-        next();
     } catch (error) {
-        next(error);
+        throw error;
     }
 });
 
