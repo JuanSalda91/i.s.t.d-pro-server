@@ -122,3 +122,60 @@ exports.protect = async (req, res, next) => {
         });
     }
 };
+
+/**
+ * ==========================================
+ * MIDDLEWARE: Authorize by Role
+ * ==========================================
+ * 
+ * PURPOSE: Check if user has required role (admin, employee, etc.)
+ * 
+ * HOW IT WORKS:
+ * 1. Takes array of allowed roles as parameter
+ * 2. Checks if req.user.role is in allowed roles array
+ * 3. If yes: allows request to proceed
+ * 4. If no: returns 403 Forbidden error
+ * 
+ * USAGE IN ROUTES:
+ * router.delete('/products/:id', protect, authorize('admin'), deleteProduct);
+ * 
+ * This means:
+ * - User must be authenticated (protect middleware)
+ * - User must have 'admin' role (authorize middleware)
+ * - Only then deleteProduct controller executes
+ * 
+ * EXAMPLE: Multiple allowed roles
+ * router.get('/reports', protect, authorize('admin', 'manager'), getReports);
+ * - Allows both admin and manager roles
+ * - Employee role would be rejected (403)
+ */
+exports.authorize = (...roles) => {
+    /**
+     * This returns a middleware function
+     * Allows us to pass parameters like: authorize('admin', 'manager')
+     * 
+     * The returned function is the actual middleware that Express will call
+     */
+    return (req, res, next) => {
+        /**
+         * STEP 1: Check if user's role is in allowed roles
+         * 
+         * req.user.role should be set by protect middleware
+         * roles is an array of allowed roles (e.g., ['admin', 'manager'])
+         */
+        if (!roles.includes(req.user.role)) {
+            /**
+             * User role not in allowed list
+             * Return 403 Forbidden (authenticated but not authorized)
+             */
+            return res.status(403).json({
+                success: false,
+                message: `User role '${req.user.role}' is not authorized to access this route`,
+            });
+        }
+        /**
+         * STEP 2: Role is allowed, proceed to next middleware/controller
+         */
+        next();
+    };
+};
