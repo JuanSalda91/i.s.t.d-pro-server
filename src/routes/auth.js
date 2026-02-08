@@ -16,6 +16,14 @@ const {
 } = require('../controllers/authController.js');
 
 /**
+ * Import authentication middleware
+ * 
+ * protect: Verifies JWT token is valid
+ * authorize: Checks user has required role
+ */
+const { protect, authorize } = require('../middleware/auth.js');
+
+/**
  * ROUTE: POST /api/auth/register
  * 
  * PURPOSE: Create a new user account
@@ -129,6 +137,62 @@ router.post('/login', login);
  * - 500: Server error
  */
 router.post('/refresh', refreshToken);
+
+/**
+ * ROUTE: GET /api/auth/me
+ * 
+ * PURPOSE: Get current authenticated user's profile
+ * 
+ * PROTECTED: Requires valid JWT token
+ * MIDDLEWARE: protect
+ * 
+ * USAGE IN FRONTEND:
+ * Frontend sends: GET /api/auth/me
+ * Header: Authorization: Bearer <token>
+ * 
+ * RESPONSE:
+ * {
+ *   "success": true,
+ *   "user": {
+ *     "id": "...",
+ *     "name": "Juan Salda",
+ *     "email": "juan@istdpro.com",
+ *     "role": "admin"
+ *   }
+ * }
+ * 
+ * This is useful for frontend to get current user info after login
+ */
+router.get('/me', protect, (req, res) => {
+    res.status(200).json({
+        success: true,
+        user: req.user,
+    });
+});
+
+/**
+ * ROUTE: GET /api/auth/admin-only
+ * 
+ * PURPOSE: Example of role-restricted route
+ * 
+ * PROTECTED: Requires valid JWT AND admin role
+ * MIDDLEWARE: protect (checks JWT), authorize('admin') (checks role)
+ * 
+ * FLOW:
+ * 1. protect middleware checks JWT
+ * 2. If invalid → returns 401
+ * 3. If valid → continues to authorize middleware
+ * 4. authorize checks if role is 'admin'
+ * 5. If not admin → returns 403
+ * 6. If admin → continues to controller
+ */
+router.get('/admin-only', protect, authorize('admin'), (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'This is admin-only content',
+        user: req.user,
+    });
+});
 
 /**
  * ==========================================
