@@ -133,8 +133,8 @@ exports.register = async (req, res) => {
          * 5. Returns the saved document (without password due to select: false)
          */
         const user = await User.create({
-            name,
-            email,
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
             password, // Will be hashed by pre-save middleware in User model
             role: role || 'employee',
         });
@@ -158,8 +158,9 @@ exports.register = async (req, res) => {
             },
         });
     } catch (error) {
+        console.error('Register Error:', error);
         res.status(500).json({
-            sucess: false,
+            success: false,
             message: error.message,
         });
     }
@@ -337,7 +338,7 @@ exports.refreshToken = async (req, res) => {
          * RETURNS: The payload (user ID) if valid
          * THROWS: Error if invalid or expired
          */
-        const decoded = jwt.verify(refreshToken, process.env.JWT-REFRESH_SECRET);
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
         // ==========================================
         // GENERATE: New Access Token
         // ==========================================
