@@ -65,7 +65,24 @@ app.get('/api/health', (req, res) => {
 // API ROUTES (Will add these later)
 // ==========================================
 
+/**
+ * ROUTE MOUNTING
+ * 
+ * WHAT: app.use() tells Express to use these routes
+ * 
+ * EXAMPLE:
+ * app.use('/api/auth', require('./routes/auth'));
+ * 
+ * This means:
+ * - Any request to /api/auth/* will go to auth.js routes
+ * - route.post('/register') becomes POST /api/auth/register
+ * - route.post('/login') becomes POST /api/auth/login
+ * - route.post('/refresh') becomes POST /api/auth/refresh
+ */
+
 // app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth', require('./routes/auth.js'))
+
 // app.use('/api/products', require('./routes/products'));
 // app.use('/api/sales', require('./routes/sales'));
 // app.use('/api/invoices', require('./routes/invoices'));
