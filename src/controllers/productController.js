@@ -142,3 +142,78 @@ exports.getProducts = async (req, res) => {
     }
 };
 
+/**
+ * ==========================================
+ * CONTROLLER: Get Product by ID
+ * ==========================================
+ * 
+ * ROUTE: GET /api/products/:id
+ * 
+ * PURPOSE: Get detailed information about a single product
+ * 
+ * PARAM: id = MongoDB ObjectId (from URL path)
+ * 
+ * EXAMPLE REQUEST:
+ * GET /api/products/65a1fd98f66d453210cde123
+ * 
+ * HOW IT WORKS:
+ * 1. Extract product ID from URL parameter
+ * 2. Query database for product with that ID
+ * 3. If found: return product data
+ * 4. If not found: return 404 error
+ * 
+ * RESPONSE (200 OK):
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "_id": "65a1fd98f66d453210cde123",
+ *     "sku": "PROD-001",
+ *     "name": "Samsung 65-inch TV",
+ *     "description": "4K Smart TV with Dolby Vision...",
+ *     "price": 799.99,
+ *     "cost": 450.00,
+ *     "stock": 15,
+ *     "minStock": 5,
+ *     "category": "Electronics",
+ *     "supplier": "Samsung Distributor",
+ *     "aiGenerated": false,
+ *     "createdAt": "2026-02-08T22:30:00.000Z",
+ *     "updatedAt": "2026-02-08T22:30:00.000Z"
+ *   }
+ * }
+ * 
+ * ERROR RESPONSES:
+ * - 404: Product with that ID not found
+ * - 500: Server/database error
+ */
+exports.getProductById = async (req, res) => {
+    try {
+        // Extract product ID from url parameter
+        const { id } = req.params;
+        /**
+         * FIND PRODUCT BY ID
+         * 
+         * findById: MongoDB method to find document by ObjectId
+         * Returns null if ID doesn't exist
+         */
+        const product = await Product.findById(id);
+        // Check if product exists
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found',
+            });
+        }
+        // Return product details
+        res.status(200).json({
+            success: true,
+            data: product,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
