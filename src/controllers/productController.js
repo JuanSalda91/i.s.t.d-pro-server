@@ -518,3 +518,106 @@ exports.deleteProduct = async (req, res) => {
     }
 };
 
+/**
+ * ==========================================
+ * CONTROLLER: Get Low Stock Products
+ * ==========================================
+ * 
+ * ROUTE: GET /api/products/low-stock
+ * 
+ * PURPOSE: Get all products with stock at or below minStock level
+ * 
+ * USEFUL FOR:
+ * - Inventory reordering alerts
+ * - Creating low-stock reports
+ * - Day 7-8 AI: Suggesting discounts for low-stock items
+ * - Dashboard: Show products needing urgent attention
+ * 
+ * HOW IT WORKS:
+ * 1. Find all products where stock <= minStock
+ * 2. Sort by lowest stock first (most urgent at top)
+ * 3. Return array of low-stock products with count
+ * 
+ * EXAMPLE PRODUCTS:
+ * Product A: minStock=10, stock=8 → INCLUDED (8 <= 10) ✅
+ * Product B: minStock=10, stock=10 → INCLUDED (10 <= 10) ✅
+ * Product C: minStock=10, stock=11 → NOT INCLUDED (11 > 10) ❌
+ * 
+ * QUERY EXPLANATION:
+ * $expr: Compare fields to each other (not constants)
+ * $lte: Less than or equal to
+ * '$stock': Field reference (the $ prefix)
+ * '$minStock': Field reference
+ * 
+ * Result: Finds docs where stock field value <= minStock field value
+ * 
+ * RESPONSE (200 OK):
+ * {
+ *   "success": true,
+ *   "count": 3,
+ *   "data": [
+ *     {
+ *       "_id": "65a1fd98f66d453210cde123",
+ *       "sku": "PROD-001",
+ *       "name": "Samsung TV",
+ *       "stock": 2,
+ *       "minStock": 10,
+ *       ...
+ *     },
+ *     {
+ *       "_id": "65a1fd98f66d453210cde124",
+ *       "sku": "PROD-002",
+ *       "name": "Nike Shoes",
+ *       "stock": 5,
+ *       "minStock": 15,
+ *       ...
+ *     },
+ *     {...}
+ *   ]
+ * }
+ * 
+ * ERROR RESPONSES:
+ * - 500: Server/database error
+ */
+exports.getLowStockProducts = async (req, res) => {
+    try {
+        /**
+         * STEP 1: Query products where stock <= minStock
+         * 
+         * $expr: Allows comparison between two fields
+         * $lte: "less than or equal to" comparison operator
+         * 
+         * English: Find all products where the stock field
+         * is less than or equal to the minStock field
+         */
+        const products = await Product.find({
+            $expr: { $lte: ['$stock', '$minStock'] },
+        })
+        /**
+         * STEP 2: Sort results
+         * 
+         * .sort({ stock: 1 }): Sort by stock in ascending order
+         * This puts the lowest stock products first (most urgent)
+         * 
+         * Ascending (1): 0, 1, 2, 3, 4, 5... (lowest first)
+         * Descending (-1): 5, 4, 3, 2, 1, 0... (highest first)
+         */
+        .sort({ stock: 1 });
+        /**
+         * STEP 3: Send response
+         * 
+         * Return count and array of low-stock products
+         */
+        res.status(200).json({
+            success: true,
+            count: products.length,
+            data: products,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
