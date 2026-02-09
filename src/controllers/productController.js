@@ -367,3 +367,89 @@ exports.createProduct = async (req, res) => {
     });
   }
 };
+
+/**
+ * ==========================================
+ * CONTROLLER: Update Product
+ * ==========================================
+ * 
+ * ROUTE: PUT /api/products/:id
+ * 
+ * PURPOSE: Update existing product information
+ * 
+ * REQUIRES: Admin role
+ * 
+ * PARAM: id - MongoDB ObjectId
+ * 
+ * REQUEST BODY: Any fields to update (partial update allowed)
+ * {
+ *   "name": "Updated Product Name",
+ *   "price": 899.99,
+ *   "stock": 25,
+ *   "description": "Updated description"
+ * }
+ * 
+ * IMPORTANT:
+ * - Only provided fields are updated
+ * - Other fields remain unchanged
+ * - All schema validations apply
+ * - Product must exist
+ * 
+ * RESPONSE (200 OK):
+ * {
+ *   "success": true,
+ *   "message": "Product updated successfully",
+ *   "data": { ...updated product... }
+ * }
+ * 
+ * ERROR RESPONSES:
+ * - 404: Product not found
+ * - 500: Server error (validation failure, etc.)
+ */
+exports.updateProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        /**
+         * CHECK IF PRODUCT EXISTS
+         * 
+         * First verify product exists before attempting update
+         * This gives us better error messaging
+         */
+        let product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found',
+            });
+        }
+        /**
+         * UPDATE PRODUCT
+         * 
+         * findByIdAndUpdate() does:
+         * 1. Finds product by ID
+         * 2. Updates with fields from req.body (only provided fields)
+         * 3. Runs schema validation on updated document
+         * 4. Saves to database
+         * 5. Returns updated document
+         * 
+         * OPTIONS:
+         * - new: true → returns updated document instead of original
+         * - runValidators: true → runs schema validations
+         */
+        product = await Product.findByIdAndUpdate(id, req.body, {
+            new: true,
+            runValidators: true,
+        });
+        // return updated product
+        res.status(200).json({
+            success: true,
+            message: 'Product updated successfully',
+            data: product,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
