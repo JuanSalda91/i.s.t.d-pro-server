@@ -453,3 +453,68 @@ exports.updateProduct = async (req, res) => {
         });
     }
 };
+
+/**
+ * ==========================================
+ * CONTROLLER: Delete Product
+ * ==========================================
+ * 
+ * ROUTE: DELETE /api/products/:id
+ * 
+ * PURPOSE: Remove a product from inventory
+ * 
+ * REQUIRES: Admin role
+ * 
+ * PARAM: id - MongoDB ObjectId
+ * 
+ * IMPORTANT NOTES:
+ * - This is a hard delete (permanently removes product)
+ * - In production, consider soft deletes (add isDeleted flag)
+ * - Before deleting, check if product has sales history
+ * - Cannot recover deleted products
+ * 
+ * RESPONSE (200 OK):
+ * {
+ *   "success": true,
+ *   "message": "Product deleted successfully",
+ *   "data": { ...deleted product... }
+ * }
+ * 
+ * ERROR RESPONSES:
+ * - 404: Product not found
+ * - 500: Server error
+ */
+exports.deleteProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        /**
+         * DELETE PRODUCT
+         * 
+         * findByIdAndDelete() does:
+         * 1. Finds product by ID
+         * 2. Deletes from database
+         * 3. Returns deleted document
+         * 4. Returns null if not found
+         */
+        const product = await Product.findByIdAndDelete(id);
+        // check if product was found and deleted
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found',
+            });
+        }
+        // return success with deleted product information
+        res.status(200).json({
+            success: true,
+            message: 'Product deleted successfully',
+            data: product,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
