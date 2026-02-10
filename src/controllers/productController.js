@@ -621,3 +621,115 @@ exports.getLowStockProducts = async (req, res) => {
     }
 };
 
+/**
+ * ==========================================
+ * CONTROLLER: Get Product Statistics
+ * ==========================================
+ * 
+ * ROUTE: GET /api/products/stats
+ * 
+ * PURPOSE: Get aggregate statistics about all products
+ * 
+ * USEFUL FOR:
+ * - Dashboard summaries
+ * - Inventory overview
+ * - Financial analysis
+ * - Reporting
+ * 
+ * STATISTICS PROVIDED:
+ * - totalProducts: Count of all products
+ * - totalStock: Sum of all stock quantities
+ * - avgPrice: Average selling price
+ * - avgCost: Average purchase cost
+ * - maxPrice: Highest product price
+ * - minPrice: Lowest product price
+ * 
+ * HOW IT WORKS (MongoDB Aggregation Pipeline):
+ * 
+ * Aggregation is like a multi-stage process:
+ * Stage 1 ($group): Group all documents together
+ *   _id: null = combine all documents into one group
+ *   Calculate totals, averages, min, max within that group
+ * 
+ * Result: Single document with statistics
+ * 
+ * EXAMPLE RESPONSE (200 OK):
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "_id": null,
+ *     "totalProducts": 45,
+ *     "totalStock": 1250,
+ *     "avgPrice": 599.99,
+ *     "avgCost": 350.00,
+ *     "maxPrice": 2499.99,
+ *     "minPrice": 9.99
+ *   }
+ * }
+ * 
+ * WHAT THESE MEAN:
+ * - totalProducts: 45 = We have 45 products
+ * - totalStock: 1250 = Total items in inventory (all products combined)
+ * - avgPrice: 599.99 = Average selling price per product
+ * - avgCost: 350.00 = Average cost per product
+ * - maxPrice: 2499.99 = Most expensive product
+ * - minPrice: 9.99 = Cheapest product
+ * 
+ * ERROR RESPONSES:
+ * - 500: Server/database error
+ */
+exports.getProductStats = async (req, res) => {
+    try {
+        /**
+         * STEP 1: Aggregate data from all products
+         * 
+         * Product.aggregate([...]) = MongoDB aggregation pipeline
+         * Pipeline is array of stages that transform data
+         * 
+         * STAGE 1: $group
+         * Groups all documents together and calculates:
+         * - _id: null = combine into single group
+         * - $sum: 1 = count documents (each product = 1)
+         * - $sum: '$stock' = add up all stock values
+         * - $avg: '$price' = calculate average price
+         * - $max: '$price' = find maximum price
+         * - $min: '$price' = find minimum price
+         */
+        const stats = await Product.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalproducts: { $sum: 1 },
+                    totalStock: { $sum: '$stock' },
+                    avgPrice: { $avg: '$price' },
+                    avgCost: { $avg: '$cost' },
+                    maxPrice: { $max: '$price' },
+                    minPrice: { $min: '$price' },
+                },
+            },
+        ]);
+        /**
+         * STEP 2: Send response
+         * 
+         * stats[0] = first (and only) document from aggregation
+         * || {...default values} = if no stats, return defaults
+         * (Happens when no products in database)
+         */
+        res.status(200).json({
+            success: true,
+            data: stats[0] || {
+                totalProducts: 0,
+                totalStock: 0,
+                avgPrice: 0,
+                avgCost: 0,
+                maxPrice: 0,
+                minPrice: 0,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
