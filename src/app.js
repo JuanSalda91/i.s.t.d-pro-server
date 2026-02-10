@@ -81,9 +81,11 @@ app.get('/api/health', (req, res) => {
  */
 
 // app.use('/api/auth', require('./routes/auth'));
-app.use('/api/auth', require('./routes/auth.js'))
+app.use('/api/auth', require('./routes/auth.js'));
 
 // app.use('/api/products', require('./routes/products'));
+app.use('/api/products', require('./routes/products'));
+
 // app.use('/api/sales', require('./routes/sales'));
 // app.use('/api/invoices', require('./routes/invoices'));
 // app.use('/api/ai', require('./routes/ai'));
