@@ -53,7 +53,7 @@ exports.getProducts = async (req, res) => {
   try {
     // Step 1: Extract query parameters from URL
     // Example: GET /api/products?search=Samsung&category=Electrónica
-    const { search, category, minStock } = req.query;
+    const { search, category, minStock, sortBy } = req.query;
     // Step 2: Initialize empty filter object
     // This will be populated with search conditions
     let filter = {};
@@ -114,7 +114,7 @@ exports.getProducts = async (req, res) => {
      * .sort({ createdAt: -1 }): Sort by creation date, newest first
      * (-1 = descending order, 1 = ascending)
      */
-    const products = (await Product.find(filter)).toSorted({ createdAt: -1 });
+    const products = await Product.find(filter).sort({ createdAt: -1 });
     /**
      * SEND RESPONSE
      *
@@ -129,6 +129,7 @@ exports.getProducts = async (req, res) => {
       data: products,
     });
   } catch (error) {
+    console.error('getProducts Error:', error);
     /**
      * ERROR HANDLING
      *
@@ -293,13 +294,7 @@ exports.createProduct = async (req, res) => {
      * Note: price === undefined checks for existence
      * because price could be 0, which is falsy in JavaScript
      */
-    if (
-      !sku ||
-      !name ||
-      price === undefined ||
-      cost === undefined ||
-      stock === undefined
-    ) {
+    if (!sku || !name || price === undefined || cost === undefined || stock === undefined) {
       return res.status(400).json({
         success: false,
         message:
@@ -341,6 +336,8 @@ exports.createProduct = async (req, res) => {
       minStock: minStock || 10,
       supplier: supplier || "",
     });
+    // sSave created product to database
+    await product.save();
     // Return created product with 201 created status
     res.status(201).json({
       succes: true,
@@ -775,25 +772,25 @@ exports.getProductStats = async (req, res) => {
  *   "count": 4,
  *   "data": [
  *     {
- *       "_id": "Electrónica",
+ *       "_id": "Electronics",
  *       "count": 25,
  *       "totalStock": 450,
  *       "avgPrice": 799.99
  *     },
  *     {
- *       "_id": "Ropa",
+ *       "_id": "Clothing",
  *       "count": 18,
  *       "totalStock": 320,
  *       "avgPrice": 49.99
  *     },
  *     {
- *       "_id": "Hogar",
+ *       "_id": "Home",
  *       "count": 12,
  *       "totalStock": 200,
  *       "avgPrice": 129.99
  *     },
  *     {
- *       "_id": "Alimentos",
+ *       "_id": "Food",
  *       "count": 8,
  *       "totalStock": 150,
  *       "avgPrice": 15.99
