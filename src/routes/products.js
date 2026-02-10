@@ -31,7 +31,7 @@ const {
  * protect: Verifies JWT token and authenticates user
  * authorize: Checks if user has required role
  */
-const { protec, authorize, protect } = require('../middleware/auth.js');
+const { protect, authorize, } = require('../middleware/auth.js');
 
 /**
  * ==========================================
