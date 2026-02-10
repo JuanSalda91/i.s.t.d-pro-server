@@ -733,3 +733,151 @@ exports.getProductStats = async (req, res) => {
         });
     }
 };
+
+/**
+ * ==========================================
+ * CONTROLLER: Get Products by Category
+ * ==========================================
+ * 
+ * ROUTE: GET /api/products/category-stats
+ * 
+ * PURPOSE: Get product count, stock, and pricing grouped by category
+ * 
+ * USEFUL FOR:
+ * - Category-wise inventory analysis
+ * - Dashboard category summaries
+ * - Identifying which categories have most products
+ * - Category performance reports
+ * - Understanding stock distribution across categories
+ * 
+ * STATISTICS PER CATEGORY:
+ * - _id: Category name
+ * - count: Number of products in category
+ * - totalStock: Total inventory for category
+ * - avgPrice: Average selling price in category
+ * 
+ * HOW IT WORKS (MongoDB Aggregation Pipeline):
+ * 
+ * STAGE 1: $group
+ * Groups products by category and calculates:
+ * - _id: '$category' = group by category field value
+ * - count: { $sum: 1 } = count products in each category
+ * - totalStock: { $sum: '$stock' } = sum stock for category
+ * - avgPrice: { $avg: '$price' } = average price in category
+ * 
+ * STAGE 2: $sort
+ * Sorts results by count in descending order
+ * (-1 = descending: highest count first)
+ * 
+ * EXAMPLE RESPONSE (200 OK):
+ * {
+ *   "success": true,
+ *   "count": 4,
+ *   "data": [
+ *     {
+ *       "_id": "Electrónica",
+ *       "count": 25,
+ *       "totalStock": 450,
+ *       "avgPrice": 799.99
+ *     },
+ *     {
+ *       "_id": "Ropa",
+ *       "count": 18,
+ *       "totalStock": 320,
+ *       "avgPrice": 49.99
+ *     },
+ *     {
+ *       "_id": "Hogar",
+ *       "count": 12,
+ *       "totalStock": 200,
+ *       "avgPrice": 129.99
+ *     },
+ *     {
+ *       "_id": "Alimentos",
+ *       "count": 8,
+ *       "totalStock": 150,
+ *       "avgPrice": 15.99
+ *     }
+ *   ]
+ * }
+ * 
+ * WHAT THIS SHOWS:
+ * - Electronics is largest category (25 products)
+ * - Electronics also has highest avg price (799.99)
+ * - Clothing has good stock (320 items) but lower price (49.99)
+ * - Food is smallest category (8 products)
+ * 
+ * USE CASES:
+ * 1. Dashboard: Show category breakdown in pie chart
+ * 2. Inventory: Find which category needs restocking
+ * 3. Pricing: Compare prices across categories
+ * 4. Strategy: Identify top-performing categories
+ * 
+ * ERROR RESPONSES:
+ * - 500: Server/database error
+ */
+exports.getProductsByCategory = async (req, res) => {
+    try {
+        /**
+         * STEP 1: Aggregate products by category
+         * 
+         * Product.aggregate([...]) = MongoDB aggregation pipeline
+         * 
+         * STAGE 1: $group
+         * _id: '$category' = group by category field
+         *   Creates one group for each unique category value
+         *   Example: "Electrónica", "Ropa", "Hogar", "Alimentos"
+         * 
+         * count: { $sum: 1 }
+         *   For each document, add 1 to sum
+         *   Result: Total count of products in category
+         *   If 25 electronics products: count = 25
+         * 
+         * totalStock: { $sum: '$stock' }
+         *   Add up the stock field for all products in category
+         *   If 10 products with 45 total stock: totalStock = 45
+         * 
+         * avgPrice: { $avg: '$price' }
+         *   Calculate average price for products in category
+         *   If prices are 100, 200, 300: avgPrice = 200
+         */
+        const categories = await Product.aggregate([
+            {
+                $group: {
+                    _id: '$category',
+                    count: { $sum: 1 },
+                    totalStock: { $sum: '$stock' },
+                    avgPrice: { $avg: '$price' },
+                },
+            },
+            /**
+             * STAGE 2: $sort
+             * 
+             * Sort results by count in descending order
+             * -1 = descending (largest counts first)
+             * 1 = ascending (smallest counts first)
+             * 
+             * Result: Categories with most products appear first
+             * Example order: Electronics (25), Clothing (18), Home (12), Food (8)
+             */
+            { $sort: { count: -1 } },
+        ]);
+        /**
+         * STEP 2: Send response
+         * 
+         * Return count of categories and array of category statistics
+         * categories.length = number of unique categories
+         * categories = array of category stats objects
+         */
+        res.status(200).json({
+            success: true,
+            count: categories.length,
+            data: categories,
+        });
+    } catch (error ) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
