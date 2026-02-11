@@ -122,3 +122,21 @@ exports.updateSaleStatus = async (req, res) => {
     }
 };
 
+// DELETE A SALE
+exports.deleteSale = async (req, res) => {
+    try {
+        const sale = await Sale.findById(req.params.id);
+        if (!sale) {
+            return res.status(404).json({ message: 'Sale not found' });
+        }
+        // check if authorization: only seller who created the sale can delete items
+        if (sale.sellerId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to delete this sale' });
+        }
+        await sale.remove();
+        res.status(200).json({ message: 'Sale deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting sale', error: error.message });
+    }
+};
+
