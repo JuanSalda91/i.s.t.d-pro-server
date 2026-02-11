@@ -140,3 +140,28 @@ exports.deleteSale = async (req, res) => {
     }
 };
 
+// GET sales statistics (total sales amount, count, etc.)
+exports.getSalesStats = async (req, res) => {
+  try {
+    // Get stats for completed sales only
+    const stats = await Sale.aggregate([
+      { $match: { status: 'completed' } }, // Only completed sales
+      {
+        $group: {
+          _id: null,
+          totalSales: { $sum: '$totalAmount' }, // Sum all amounts
+          totalTransactions: { $sum: 1 }, // Count transactions
+          averageAmount: { $avg: '$totalAmount' }, // Average per sale
+          maxSale: { $max: '$totalAmount' }, // Highest sale
+          minSale: { $min: '$totalAmount' } // Lowest sale
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      stats: stats.length > 0 ? stats[0] : { message: 'No completed sales yet' }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching stats', error: error.message });
+  }
+};
