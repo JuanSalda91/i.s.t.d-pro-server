@@ -92,3 +92,33 @@ exports.getSaleById = async (req, res) => {
     }
 };
 
+//UPDATE SALE STATUS
+exports.updateSaleStatus = async (req, res) => {
+    try {
+        const sale = await Sale.findById(req.params.id);
+        if (!sale) {
+            return res.status(404).json({ message: 'Sale not found' });
+        }
+        // check if authorization: only seller who created the sale can update items
+        if (sale.sellerId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to update this sale' });
+        }
+        // update allowed fields
+        const { status, customerName, customerEmail } = req.body;
+        if (status) sale.status = status;
+        if (customerName) sale.customerName = customerName;
+        if (customerEmail) sale.customerEmail = customerEmail;
+
+        //save updated sale
+        const updatedSale = await sale.save();
+        await updatedSale.populate('productId');
+        await updatedSale.populate('sellerId', 'email name');
+        res.status(200).json({
+            message: 'Sale updated successfully',
+            sale: updatedSale,
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating sale', error: error.message });
+    }
+};
+
