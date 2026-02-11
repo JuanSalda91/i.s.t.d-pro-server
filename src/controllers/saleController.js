@@ -76,3 +76,19 @@ exports.getSales = async (req, res) => {
     }
 };
 
+// GET SINGLE SALE BY ID
+exports.getSaleById = async (req, res) => {
+    try {
+        const sale = await Sale.findById(req.params.id)
+        .populate('productId')
+        .populate('sellerId', 'email name');
+
+        if (!sale) {
+            return res.status(404).json({ message: 'Sale not found' });
+        }
+        res.status(200).json(sale);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching sale', error: error.message });
+    }
+};
+
