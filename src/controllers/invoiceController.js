@@ -85,3 +85,39 @@ exports.createInvoice = async (req, res) => {
         res.status(500).json({ message: 'Error creating invoice', error: error.message});
     }
 };
+
+//GET ALL INVOICE
+exports.getInvoices = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, status, sellerId } = req.query;
+
+        const filter = {};
+        if (status) filter.status = status;
+        if (sellerId) filter.sellerId = sellerId;
+
+        if (req.user.role !== 'admin') {
+            filter.sellerId = req.user._id;
+        }
+
+        const total = await Invoice.countDocuments(filter);
+
+        const invoices = await Invoice.find(filter)
+        .populate('saleId', 'customerName customerEmail quantity totalAmount')
+        .populate('sellerId', 'name email')
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .sort({ invoice: -1 });
+
+        res.status(200).json({
+            invoices,
+            pagination: {
+                totalinvoices: total,
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error in getInvoices', error);
+        res.status(500).json({ message: 'Error fetching invoices', error: error.message });
+    }
+};
