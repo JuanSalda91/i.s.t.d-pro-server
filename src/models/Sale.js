@@ -38,11 +38,10 @@ const SaleSchema = new mongoose.Schema({
     },
     totalAmount: {
         type: Number,
-        required: [true, 'Total amount is required'],
-        min: [0, 'Amount cannot be negative'],
+        default: 0, // will be calculated by pre-save hook
     },
     // seller reference
-    sellerid: {
+    sellerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: [true, 'Seller is required'],
@@ -60,12 +59,11 @@ const SaleSchema = new mongoose.Schema({
 });
 
 // Pre-save hook: Calculate total amount = unitprice * quantity
-SaleSchema.pre('save', function(next) {
+SaleSchema.pre('save', function() {
     // only calculate if quantity or price changed
     if (this.isModified('quantity') || this.isModified('unitPrice')) {
         this.totalAmount = this.quantity * this.unitPrice;
     }
-    next();
 });
 
 module.exports = mongoose.model('Sale', SaleSchema);
