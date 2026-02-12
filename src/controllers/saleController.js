@@ -5,10 +5,21 @@ const Product = require('../models/Product.js');
 exports.createSale = async (req, res) => {
     try {
         const { customerName, customerEmail, customerPhone, productId, quantity, unitPrice } = req.body;
+
         //validate required fields
         if (!customerName || !customerEmail || !productId || !quantity || !unitPrice) {
             return res.status(400).json({ message: 'All fields are required' });
         }
+
+        // CRITICAL: Check if user is authenticated
+        if (!req.user || !req.user.id) {
+          console.error('ERROR: User not authenticated. req.user:', req.user);
+          return res.status(401).json({
+            success: false,
+            message: 'Unauthorized. Please provide valid authentication token'
+          });
+        }
+
         //check if product exists and has enough stock
         const product = await Product.findById(productId);
         if (!product) {
@@ -19,25 +30,27 @@ exports.createSale = async (req, res) => {
         }
         //create sale object
         const newSale = new Sale ({
-            customerName,
-            customerEmail,
-            customerPhone,
+            customerName: customerName.trim(),
+            customerEmail: customerEmail.trim(),
+            customerPhone: customerPhone ? customerPhone.trim() : '',
             productId,
-            quantity,
-            unitPrice,
+            quantity: parseInt(quantity),
+            unitPrice: parseFloat(unitPrice),
             sellerId: req.user._id, //get seller from authenticated user
             status: 'pending',
         });
+
         // save to database (totalAmount calculated by pre-save hook)
         const savedSale = await newSale.save();
         // populate product and seller details before returning
         await savedSale.populate('productId');
-        await savedSale.populate('sellerId', 'enamil name'); // only get seller's email and name
+        await savedSale.populate('sellerId', 'email name'); // only get seller's email and name
         res.status(201).json({
             message: 'Sale created successfully',
             sale: savedSale,
         });
     } catch (error) {
+        console.error('Error creating sale:', error);
         res.status(500).json({ message: 'Error creating sale', error: error.message });
     }
 };
@@ -45,7 +58,7 @@ exports.createSale = async (req, res) => {
 // GET ALL SALES WITH FILTERING
 exports.getSales = async (req, res) => {
     try {
-        const { page = 1, limit = 10, status, sellerId } = req.body;
+        const { page = 1, limit = 10, status, sellerId } = req.query;
 
         //build filter object (filter by status or seller if provided)
         const filter = {};
@@ -133,7 +146,7 @@ exports.deleteSale = async (req, res) => {
         if (sale.sellerId.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: 'Not authorized to delete this sale' });
         }
-        await sale.remove();
+        await Sale.findByIdAndDelete(req.params.id);
         res.status(200).json({ message: 'Sale deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting sale', error: error.message });
