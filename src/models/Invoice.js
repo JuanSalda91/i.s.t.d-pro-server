@@ -119,3 +119,22 @@ const InvoiceSchema = new mongoose.Schema({
     },
 });
 
+/** Pre-Save Hook
+ * 
+ * Automatically calculates:
+ * 1. Tax amount based on taxPercentage
+ * 2. Total amount (Subtotal + tax)
+ */
+
+InvoiceSchema.pre('save', function() {
+    //calculate tax amount
+    if (this.subTotal && this.taxPercentage) {
+        this.taxAmount = (this.subTotal * this.taxPercentage) / 100;
+    }
+    // calculate total amount
+    if (this.subTotal && this.taxPercentage >= 0) {
+        this.totalAmount = this.subTotal + this.taxAmount;
+    }
+});
+
+module.exports = mongoose.model('Invoice', InvoiceSchema);
