@@ -87,6 +87,7 @@ app.use('/api/auth', require('./routes/auth.js'));
 app.use('/api/products', require('./routes/products.js'));
 
 // app.use('/api/sales', require('./routes/sales'));
+app.use('/api/sales', require('./routes/sales.js'));
 // app.use('/api/invoices', require('./routes/invoices'));
 // app.use('/api/ai', require('./routes/ai'));
 
