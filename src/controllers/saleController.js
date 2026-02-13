@@ -205,6 +205,67 @@ exports.getSalesStats = async (req, res) => {
   }
 };
 
+// GET monthly revenue
+exports.getMonthlyRevenue = async (req, res) => {
+  try {
+    const { year } = req.query;
+    const matchStage = { status: 'completed' };
+
+    // If year is provided, filter to that calendar year
+    if (year) {
+      const y = parseInt(year, 10);
+      if (isNaN(y)) {
+        return res
+          .status(400)
+          .json({ message: 'Invalid year. Use a numeric value like 2026' });
+      }
+
+      const start = new Date(y, 0, 1); // Jan 1
+      const end = new Date(y + 1, 0, 1); // Jan 1 of next year
+
+      matchStage.createdAt = { $gte: start, $lt: end };
+    }
+
+    const results = await Sale.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+          },
+          totalRevenue: { $sum: '$totalAmount' },
+          totalTransactions: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          year: '$_id.year',
+          month: '$_id.month',
+          totalRevenue: {
+            $round: ['$totalRevenue', 2],
+          },
+          totalTransactions: 1,
+        },
+      },
+      { $sort: { year: 1, month: 1 } },
+    ]);
+
+    res.status(200).json({
+      filter: { year: year || 'all' },
+      months: results,
+    });
+  } catch (error) {
+    console.error('Error in getMonthlyRevenue:', error);
+    res.status(500).json({
+      message: 'Error fetching monthly revenue',
+      error: error.message,
+    });
+  }
+};
+
+//GET sales report
 exports.getSalesReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
