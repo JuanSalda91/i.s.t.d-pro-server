@@ -267,3 +267,54 @@ exports.getInvoiceStats = async (req, res) => {
         res.status(500).json({ message: 'Error fetching statistics', error: error.message });
     }
 };
+
+/**GET INVOICES BY STATUS
+ * What: Retrieve invoices filtered by specific status
+ * Statuses: draft, sent, paid, overdue, cancelled
+ */
+exports.getInvoicesByStatus = async (req, res) => {
+    try {
+        const { status, page = 1, limit = 10 } = req.query;
+
+        //validate status
+        const validStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
+        if (!status || !validStatuses.includes(status)) {
+            return res.status(400).json({ message: `invalid status. Must be one of: ${validStatuses.join(', ')}` });
+        }
+        
+        //build filter
+        const filter = { status };
+
+        // if not admin only show invoices
+        if (req.user.role !== 'admin') {
+            filter.sellerId = req.user._id;
+        }
+
+        //count Total
+        const total = await Invoice.countDocuments(filter);
+
+        //fetch invoices
+        const invoices = await Invoice.find(filter)
+        .populate('sellerId', 'customerName totalAmount')
+        .populate('sellerId', 'name email')
+        .limit(limit * 10)
+        .skip((page - 1) * limit)
+        .sort({ invoiceDate: -1 });
+
+        res.status(200).json({
+            invoices,
+            pagination: {
+                totalInvoices: total,
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(total / limit),
+                status
+            }
+        });
+    } catch (error) {
+        console.error('Error in getInvoicesByStatus:', error);
+        res.status(500).json({ message: 'Error fetching invoices by status', error: error.message });
+    }
+};
+
+// (if needed) Export all functions
+//module.exports = exports;
