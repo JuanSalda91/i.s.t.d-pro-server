@@ -23,7 +23,7 @@ function generateInvoicePdf(invoice, stream) {
     .text(`Status: ${invoice.status}`)
     .text(`Invoice Date: ${invoice.invoiceDate.toDateString()}`)
     .text(`Due Date: ${invoice.dueDate.toDateString()}`)
-    .modeDown();
+    .moveDown();
 
     //========== CUSTOMER INFO ==========
     doc
