@@ -39,22 +39,22 @@ const InvoiceSchema = new mongoose.Schema({
     //Product details (snapshot at invoice time)
     productName: {
         type: String,
-        required: true,
+        required: [true, 'Product name is required'],
     },
     quantity: {
         type: Number,
-        required: true,
+        required: [true, 'Quantity is required'],
         min: 1,
     },
     unitPrice: {
         type: Number,
-        required: true,
+        required: [true, 'Unit price is required'],
         min: 0
     },
     // Amount calculations
-    subTotal: {
+    subtotal: {
         type: Number,
-        required: true,
+        default: 0,
         min: 0,
     },
     taxPercentage: {
@@ -128,12 +128,12 @@ const InvoiceSchema = new mongoose.Schema({
 
 InvoiceSchema.pre('save', function() {
     //calculate tax amount
-    if (this.subTotal && this.taxPercentage) {
-        this.taxAmount = (this.subTotal * this.taxPercentage) / 100;
+    if (this.subtotal && this.taxPercentage) {
+        this.taxAmount = (this.subtotal * this.taxPercentage) / 100;
     }
     // calculate total amount
-    if (this.subTotal && this.taxPercentage >= 0) {
-        this.totalAmount = this.subTotal + this.taxAmount;
+    if (this.subtotal && this.taxPercentage >= 0) {
+        this.totalAmount = this.subtotal + this.taxAmount;
     }
 });
 

@@ -1,69 +1,111 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-// Sales Schema - Tracks all sales transactions
+const SaleItemSchema = new mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true,
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1,
+  },
+  unitPrice: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  itemTotal: {
+    type: Number,
+    default: 0,
+  },
+});
+
 const SaleSchema = new mongoose.Schema({
-    //customer info
-    customerName: {
-        type: String,
-        required: [true, 'Customer name is required'],
-        trim: true,
+  customerName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  customerEmail: {
+    type: String,
+    required: true,
+    trim: true,
+    match: [/.+\@.+\..+/, "Please enter a valid email"],
+  },
+  customerPhone: {
+    type: String,
+    trim: true,
+  },
+  //array of items
+  items: {
+    type: [SaleItemSchema],
+    required: true,
+    validate: {
+      validator: function(v) {
+        return v && v.length > 0;
+      },
+      message: "A sale must have at least one item"
     },
-    customerEmail: {
-        type: String,
-        required: [true, 'Customer email is required'],
-        trim: true,
-        match: [/.+\@.+\..+/, 'Please enter a valid email address'],
-    },
-    customerPhone: {
-        type: String,
-        trim: true,
-    },
-    //product reference
-    productId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product',
-        required: [true, 'Product is required'],
-    },
-    //sales quantity
-    quantity: {
-        type: Number,
-        required: [true, 'Quantity is required'],
-        min: [1,'Quantity must be at least 1'],
-    },
-    //pricing info
-    unitPrice: {
-        type: Number,
-        required: [true, 'Unit price is required'],
-        min: [0, 'Price cannot be negative'],
-    },
-    totalAmount: {
-        type: Number,
-        default: 0, // will be calculated by pre-save hook
-    },
-    // seller reference
-    sellerId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: [true, 'Seller is required'],
-    },
-    status: {
-        type: String,
-        enum: ['pending', 'completed', 'cancelled'],
-        default: 'pending',
-    },
-    //timestamp tracking (auto generated)
-    createdAt: {
-        type: Date,
-        default: Date.now,
-    },
+  },
+  subtotal: {
+    type: Number,
+    default: 0,
+  },
+  taxPercentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100,
+  },
+  taxAmount: {
+    type: Number,
+    default: 0,
+  },
+  totalAmount: {
+    type: Number,
+    default: 0,
+  },
+
+  // Seller reference
+  sellerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+
+  // Status
+  status: {
+    type: String,
+    enum: ["pending", "completed", "cancelled"],
+    default: "pending",
+  },
+
+  // Timestamps
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-// Pre-save hook: Calculate total amount = unitprice * quantity
-SaleSchema.pre('save', function() {
-    // only calculate if quantity or price changed
-    if (this.isModified('quantity') || this.isModified('unitPrice')) {
-        this.totalAmount = this.quantity * this.unitPrice;
-    }
+// Pre-save hook: Calculate all totals
+SaleSchema.pre("save", function() {
+  // Step 1: Calculate itemTotal for each item
+  if (this.items && this.items.length > 0) {
+    this.items.forEach(item => {
+      item.itemTotal = item.quantity * item.unitPrice;
+    });
+
+    // Step 2: Calculate subtotal (sum of all itemTotals)
+    this.subtotal = this.items.reduce((sum, item) => sum + item.itemTotal, 0);
+
+    // Step 3: Calculate tax
+    this.taxAmount = (this.subtotal * this.taxPercentage) / 100;
+
+    // Step 4: Calculate total
+    this.totalAmount = this.subtotal + this.taxAmount;
+  }
 });
 
-module.exports = mongoose.model('Sale', SaleSchema);
+module.exports = mongoose.model("Sale", SaleSchema);
