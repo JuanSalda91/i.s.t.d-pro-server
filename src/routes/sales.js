@@ -10,12 +10,16 @@ const {
     getSalesStats,
     getSalesReport,
     getMonthlyRevenue,
+    getTopProducts,
 } = require('../controllers/saleController.js');
 
 const { protect, authorize } = require('../middleware/auth.js');
 
 // Create a new sale
 router.post('/', protect, createSale);
+
+//Get top products
+router.get('/top-products', protect, authorize('admin'), getTopProducts);
 
 // Get Monthly revenue
 router.get('/revenue/monthly', protect, authorize('admin'), getMonthlyRevenue);
