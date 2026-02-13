@@ -250,32 +250,6 @@ exports.deleteProduct = async (req, res) => {
 
 /**
  * ==========================================
- * CONTROLLER: Get Low Stock Products
- * ==========================================
- */
-exports.getLowStockProducts = async (req, res) => {
-  try {
-    const products = await Product.find({
-      $expr: { $lte: ["$stock", "$minStock"] },
-    })
-
-      .sort({ stock: 1 });
-
-    res.status(200).json({
-      success: true,
-      count: products.length,
-      data: products,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-/**
- * ==========================================
  * CONTROLLER: Get Product Statistics
  * ==========================================
  */
