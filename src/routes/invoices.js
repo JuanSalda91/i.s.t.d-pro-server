@@ -18,9 +18,7 @@ const {
     getInvoicesByStatus
 } = require ('../controllers/invoiceController.js');
 
-const { protect, authorize } = require('../middleware/auth.js');
-const { generateInvoicePdf } = require('../utils/invoicePdf.js');
-const Invoice = require('../models/Invoice.js');
+
 
 /**
  * Import Auth middleware
@@ -28,7 +26,9 @@ const Invoice = require('../models/Invoice.js');
  * protect = verify jwt toekn (authentication)
  * authorize = check user role (authorization)
  */
-const { protect, authorize} = require('../middleware/auth.js');
+const { protect, authorize } = require('../middleware/auth.js');
+const { generateInvoicePdf } = require('../utils/invoicePdf.js');
+const Invoice = require('../models/Invoice.js');
 
 /**
  * ===============
