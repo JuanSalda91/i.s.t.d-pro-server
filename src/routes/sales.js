@@ -9,12 +9,16 @@ const {
     deleteSale,
     getSalesStats,
     getSalesReport,
+    getMonthlyRevenue,
 } = require('../controllers/saleController.js');
 
 const { protect, authorize } = require('../middleware/auth.js');
 
 // Create a new sale
 router.post('/', protect, createSale);
+
+// Get Monthly revenue
+router.get('/revenue/monthly', protect, authorize('admin'), getMonthlyRevenue);
 
 // Get sales report
 router.get('/report', protect, getSalesReport);
