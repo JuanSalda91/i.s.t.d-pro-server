@@ -36,55 +36,61 @@ const generateInvoiceNumber = async () => {
 // CREATE INVOICE FROM SALE
 exports.createInvoice = async (req, res) => {
     try {
-        const { saleId, taxPercentage = 0, notes = '' } = req.body;
-
-        if (!saleId) {
-            return res.status(400).json({ message: 'Sale ID is required' });
-        }
-        const sale = await Sale.findById(saleId)
-        .populate('productId')
-        .populate('sellerId', 'email name');
-
-        if (!sale) {
-            return res.status(404).json({ message: 'Sale not found'});
-        }
-
-        if (sale.sellerId._id.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: 'Not authorized to create invoice for this sale' });
-        }
-
-        const invoiceNumber = await generateInvoiceNumber();
-
-        const newInvoice = new Invoice({
-            invoiceNumber,
-            saleId,
-            customerName: sale.customerName,
-            customerEmail: sale.customerEmail,
-            customerPhone: sale.customerPhone,
-            productName: sale.productId.name,
-            quantiyt: sale.quantity,
-            unitPrice: sale.unitPrice,
-            subTotal: sale.subTotal,
-            taxPercentage,
-            notes,
-            sellerId: sale.sellerId._id,
-            status: 'draft',
-        });
-
-        const savedInvoice = await newInvoice.save();
-
-        await savedInvoice.populate('saleId');
-        await savedInvoice.populate('sellerId', 'email name');
-
-        res.status(201).json({
-            message: 'invoice created successfully',
-            invoice: savedInvoice
-        });
+      const { saleId, taxPercentage = 0, notes = "" } = req.body;
+  
+      if (!saleId) {
+        return res.status(400).json({ message: "Sale ID is required" });
+      }
+  
+      const sale = await Sale.findById(saleId)
+        .populate("items.productId", "name")
+        .populate("sellerId", "email name");
+  
+      if (!sale) {
+        return res.status(404).json({ message: "Sale not found" });
+      }
+  
+      if (sale.sellerId._id.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+  
+      const invoiceNumber = await generateInvoiceNumber();
+  
+      // Create items array for invoice (snapshot from sale)
+      const invoiceItems = sale.items.map(item => ({
+        productName: item.productId.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        itemTotal: item.itemTotal,
+      }));
+  
+      const newInvoice = new Invoice({
+        invoiceNumber,
+        saleId,
+        customerName: sale.customerName,
+        customerEmail: sale.customerEmail,
+        customerPhone: sale.customerPhone,
+        items: invoiceItems, // Array
+        subtotal: sale.subtotal,
+        taxPercentage: taxPercentage || sale.taxPercentage,
+        notes,
+        sellerId: sale.sellerId._id,
+        status: "draft",
+      });
+  
+      const savedInvoice = await newInvoice.save();
+      await savedInvoice.populate("saleId");
+      await savedInvoice.populate("sellerId", "email name");
+  
+      res.status(201).json({
+        message: "Invoice created successfully",
+        invoice: savedInvoice,
+      });
     } catch (error) {
-        console.error('Error in creatinginvoice:', error);
-        res.status(500).json({ message: 'Error creating invoice', error: error.message});
+      console.error("Error creating invoice:", error);
+      res.status(500).json({ message: "Error creating invoice", error: error.message });
     }
-};
+  };
 
 //GET ALL INVOICE
 exports.getInvoices = async (req, res) => {
