@@ -205,6 +205,71 @@ exports.getSalesStats = async (req, res) => {
   }
 };
 
+// GET TOP PRODUCTS BY QUANTITY SOLD
+
+exports.getTopProducts = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 5;
+
+    const results = await Sale.aggregate([
+      // Only completed sales
+      { $match: { status: 'completed' } },
+
+      // Break items array into separate documents
+      { $unwind: '$items' },
+
+      // Group by productId, sum quantity and revenue
+      {
+        $group: {
+          _id: '$items.productId',
+          totalQuantity: { $sum: '$items.quantity' },
+          totalRevenue: { $sum: '$items.itemTotal' },
+        },
+      },
+
+      // Join with Product collection to get name, category, etc.
+      {
+        $lookup: {
+          from: 'products',            // collection name in MongoDB
+          localField: '_id',           // productId
+          foreignField: '_id',
+          as: 'product',
+        },
+      },
+      { $unwind: '$product' },
+
+      // Shape the output
+      {
+        $project: {
+          _id: 0,
+          productId: '$product._id',
+          name: '$product.name',
+          category: '$product.category',
+          totalQuantity: 1,
+          totalRevenue: { $round: ['$totalRevenue', 2] },
+        },
+      },
+
+      // Sort by quantity desc, then revenue desc
+      { $sort: { totalQuantity: -1, totalRevenue: -1 } },
+
+      // Limit
+      { $limit: limit },
+    ]);
+
+    res.status(200).json({
+      limit,
+      products: results,
+    });
+  } catch (error) {
+    console.error('Error in getTopProducts:', error);
+    res.status(500).json({
+      message: 'Error fetching top products',
+      error: error.message,
+    });
+  }
+};
+
 // GET monthly revenue
 exports.getMonthlyRevenue = async (req, res) => {
   try {
