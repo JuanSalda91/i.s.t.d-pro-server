@@ -24,5 +24,19 @@ function generateInvoicePdf(invoice, stream) {
     .text(`Invoice Date: ${invoice.invoiceDate.toDateString()}`)
     .text(`Due Date: ${invoice.dueDate.toDateString()}`)
     .modeDown();
+
+    //========== CUSTOMER INFO ==========
+    doc
+    .fontSize(12)
+    .text('Bill To:', { underline: true })
+    .moveDown();
+
+    doc
+    .fontSize(12)
+    .text(invoice.customerName)
+    .text(invoice.customerEmail)
+    .text(invoice.customerPhone || '')
+    .moveDown();
+
 };
 
