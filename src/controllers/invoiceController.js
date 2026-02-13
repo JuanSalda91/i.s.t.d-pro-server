@@ -211,3 +211,59 @@ exports.deleteInvoice = async (req, res) => {
         res.status(500).json({ message: 'Error deleting invoice', error: error.message});
     }
 };
+
+//GET INVOICE STATISTICS
+exports.getInvoiceStats = async (req, res) => {
+    try {
+        const totalInvoices = await Invoice.countDocuments();
+
+        const paidStats = await Invoice.aggregate([
+            { $match: {status: 'paid '} },
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: { $sum: $totalAmount },
+                    paidCount: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const unpaidStats = await Invoice.aggregate([
+            { $match: { status: { $in: ['draft', 'sent', 'overdue'] } } },
+            {
+                $group: {
+                    _id: null,
+                    pendingAmount: { $sum: '$totalAmount' },
+                    unpaidCount: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const avgStats = await Invoice.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    averageAmount: { $avg: '$totalAmount' }
+                }
+            }
+        ]);
+
+        const paid = paidStats.length > 0 ? paidStats[0] : { totalRevenuw: 0, paidCount: 0 };
+        const unpaid = unpaidStats.length > 0 ? unpaidStats[0] : { pendingAmount: 0, unpaidCount };
+        const avg = avgStats.length > 0? avgStats[0].averageAmount: 0;
+
+        res.status(200).json({
+            stats: {
+                totalInvoices,
+                totalRevenue: Math.round(paid.totalRevenue * 100) / 100,
+                paidInvoices: paid.paidCount,
+                unpaidInvoices: unpaid.unpaidCount,
+                pendingAmount: Math.round(unpaid.pendingAmount * 100) / 100,
+                averageInvoiceAmount: Math.round(avg * 100) / 100
+            }
+        });
+    } catch (error) {
+        console.error('Error in getInvoicesStats', error)
+        res.status(500).json({ message: 'Error fetching statistics', error: error.message });
+    }
+};
