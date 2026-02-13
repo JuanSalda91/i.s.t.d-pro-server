@@ -4,56 +4,82 @@ const Product = require('../models/Product.js');
 //create a new Sale
 exports.createSale = async (req, res) => {
     try {
-        const { customerName, customerEmail, customerPhone, productId, quantity, unitPrice } = req.body;
-
-        //validate required fields
-        if (!customerName || !customerEmail || !productId || !quantity || !unitPrice) {
-            return res.status(400).json({ message: 'All fields are required' });
-        }
-
-        // CRITICAL: Check if user is authenticated
-        if (!req.user || !req.user.id) {
-          console.error('ERROR: User not authenticated. req.user:', req.user);
-          return res.status(401).json({
-            success: false,
-            message: 'Unauthorized. Please provide valid authentication token'
+      // Now expecting an ARRAY of items
+      const { customerName, customerEmail, customerPhone, items, taxPercentage = 0 } = req.body;
+  
+      // Validate required fields
+      if (!customerName || !customerEmail || !items || items.length === 0) {
+        return res.status(400).json({ 
+          message: "Customer name, email, and at least one item are required" 
+        });
+      }
+  
+      // Authenticate
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized. Please provide valid authentication token",
+        });
+      }
+  
+      // Validate and check stock for EACH item
+      const validatedItems = [];
+      for (const item of items) {
+        if (!item.productId || !item.quantity || !item.unitPrice) {
+          return res.status(400).json({ 
+            message: "Each item must have productId, quantity, and unitPrice" 
           });
         }
-
-        //check if product exists and has enough stock
-        const product = await Product.findById(productId);
+  
+        const product = await Product.findById(item.productId);
         if (!product) {
-            return res.status(400).json({ message: 'Product not found' });
+          return res.status(404).json({ 
+            message: `Product ${item.productId} not found` 
+          });
         }
-        if (product.stock < quantity) {
-            return res.status(400).json({ message: `Not enough stock. Available: ${product.stock}` });
+  
+        if (product.stock < item.quantity) {
+          return res.status(400).json({ 
+            message: `Not enough stock for ${product.name}. Available: ${product.stock}` 
+          });
         }
-        //create sale object
-        const newSale = new Sale ({
-            customerName: customerName.trim(),
-            customerEmail: customerEmail.trim(),
-            customerPhone: customerPhone ? customerPhone.trim() : '',
-            productId,
-            quantity: parseInt(quantity),
-            unitPrice: parseFloat(unitPrice),
-            sellerId: req.user._id, //get seller from authenticated user
-            status: 'pending',
+  
+        // Add validated item
+        validatedItems.push({
+          productId: item.productId,
+          quantity: parseInt(item.quantity),
+          unitPrice: parseFloat(item.unitPrice),
         });
-
-        // save to database (totalAmount calculated by pre-save hook)
-        const savedSale = await newSale.save();
-        // populate product and seller details before returning
-        await savedSale.populate('productId');
-        await savedSale.populate('sellerId', 'email name'); // only get seller's email and name
-        res.status(201).json({
-            message: 'Sale created successfully',
-            sale: savedSale,
-        });
+  
+        // IMPORTANT: Deduct stock immediately
+        product.stock -= item.quantity;
+        await product.save();
+      }
+  
+      // Create sale with validated items
+      const newSale = new Sale({
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone ? customerPhone.trim() : "",
+        items: validatedItems, // Array of items
+        taxPercentage: parseFloat(taxPercentage),
+        sellerId: req.user._id,
+        status: "pending",
+      });
+  
+      const savedSale = await newSale.save();
+      await savedSale.populate("items.productId", "name price category");
+      await savedSale.populate("sellerId", "email name");
+  
+      res.status(201).json({
+        message: "Sale created successfully",
+        sale: savedSale,
+      });
     } catch (error) {
-        console.error('Error creating sale:', error);
-        res.status(500).json({ message: 'Error creating sale', error: error.message });
+      console.error("Error creating sale:", error);
+      res.status(500).json({ message: "Error creating sale", error: error.message });
     }
-};
+  };
 
 // GET ALL SALES WITH FILTERING
 exports.getSales = async (req, res) => {
