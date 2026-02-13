@@ -204,3 +204,77 @@ exports.getSalesStats = async (req, res) => {
     res.status(500).json({ message: 'Error fetching stats', error: error.message });
   }
 };
+
+exports.getSalesReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // Basic validation
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        message: 'startDate and endDate query parameters are required (YYYY-MM-DD)',
+      });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Include the entire endDate day (set time to 23:59:59.999)
+    end.setHours(23, 59, 59, 999);
+
+    // Optional: validate dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({
+        message: 'Invalid date format. Use YYYY-MM-DD',
+      });
+    }
+
+    // Aggregation pipeline
+    const report = await Sale.aggregate([
+      {
+        // Only completed sales in date range
+        $match: {
+          status: 'completed',
+          createdAt: { $gte: start, $lte: end },
+        },
+      },
+      {
+        // Group to calculate totals
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$totalAmount' },
+          totalTransactions: { $sum: 1 },
+          averageSaleAmount: { $avg: '$totalAmount' },
+        },
+      },
+    ]);
+
+    // If no sales, fallback object
+    const data =
+      report.length > 0
+        ? report[0]
+        : {
+            totalRevenue: 0,
+            totalTransactions: 0,
+            averageSaleAmount: 0,
+          };
+
+    res.status(200).json({
+      range: {
+        startDate,
+        endDate,
+      },
+      stats: {
+        totalRevenue: Math.round(data.totalRevenue * 100) / 100,
+        totalTransactions: data.totalTransactions,
+        averageSaleAmount: Math.round(data.averageSaleAmount * 100) / 100,
+      },
+    });
+  } catch (error) {
+    console.error('Error in getSalesReport:', error);
+    res.status(500).json({
+      message: 'Error fetching sales report',
+      error: error.message,
+    });
+  }
+};
