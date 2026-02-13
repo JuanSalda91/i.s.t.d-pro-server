@@ -1,140 +1,133 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-/** Invoice Model
- * 
- * What: Represents a formal invoice generated from a sale
- * Why: Tracks billing, payment status, and procide invoice history
- * 
- * Auto-generates invoice numbers in format: INV-YYY-XXX
- * Example: INV-2026-0001, INV-2026-0002, etc.
- */
+const InvoiceItemSchema = new mongoose.Schema({
+  productName: {
+    type: String,
+    required: true,
+  },
+  quantity: {
+    type: Number,
+    required: true,
+  },
+  unitPrice: {
+    type: Number,
+    required: true,
+  },
+  itemTotal: {
+    type: Number,
+    required: true,
+  },
+});
 
 const InvoiceSchema = new mongoose.Schema({
-    // invoice number (auto-generated, unique)
-    invoiceNumber: {
-        type: String,
-        unique: true,
-        required: true,
-        // format: INV-2026-0001
+  invoiceNumber: {
+    type: String,
+    unique: true,
+    required: true,
+  },
+
+  // Reference to sale
+  saleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Sale",
+    required: true,
+  },
+
+  // Customer info
+  customerName: {
+    type: String,
+    required: true,
+  },
+  customerEmail: {
+    type: String,
+    required: true,
+  },
+  customerPhone: {
+    type: String,
+    default: "",
+  },
+
+  // Multiple items (snapshot from sale)
+  items: {
+    type: [InvoiceItemSchema],
+    required: true,
+  },
+
+  // Amount calculations
+  subtotal: {
+    type: Number,
+    default: 0,
+  },
+  taxPercentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100,
+  },
+  taxAmount: {
+    type: Number,
+    default: 0,
+  },
+  totalAmount: {
+    type: Number,
+    default: 0,
+  },
+
+  // Timeline
+  invoiceDate: {
+    type: Date,
+    default: Date.now,
+  },
+  dueDate: {
+    type: Date,
+    default: () => {
+      const date = new Date();
+      date.setDate(date.getDate() + 30);
+      return date;
     },
-    // Reference to sale document
-    saleId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Sale',
-        required: [true, 'Sale reference is required'],
-    },
-    //Customer information
-    customerName: {
-        type: String,
-        required: [true, 'Customer name is required'],
-    },
-    customerEmail: {
-        type: String,
-        required: [true, 'Customer email is required'],
-    },
-    customerPhone: {
-        type: String,
-        default: '',
-    },
-    //Product details (snapshot at invoice time)
-    productName: {
-        type: String,
-        required: [true, 'Product name is required'],
-    },
-    quantity: {
-        type: Number,
-        required: [true, 'Quantity is required'],
-        min: 1,
-    },
-    unitPrice: {
-        type: Number,
-        required: [true, 'Unit price is required'],
-        min: 0
-    },
-    // Amount calculations
-    subtotal: {
-        type: Number,
-        default: 0,
-        min: 0,
-    },
-    taxPercentage: {
-        type: Number,
-        default: 0, //Default 0% tax (can be 5%, 10%, etc.)
-        min: 0,
-        max: 100,
-    },
-    taxAmount: {
-        type: Number,
-        default: 0,
-    },
-    totalAmount: {
-        type: Number,
-        default: 0,
-    },
-    // invoice timeline
-    invoiceDate: {
-        type: Date,
-        default: Date.now,
-    },
-    dueDate: {
-        type: Date,
-        default: () => {
-            //default: 30 days from invoice Date
-            const date = new Date();
-            date.setDate(date.getDate() + 30);
-            return date;
-        }
-    },
-    // invoice status
-    status: {
-        type: String,
-        enum: ['draft', 'sent', 'paid', 'overdue', 'cancelled'],
-        default: 'draft',
-    },
-    // seller/company information
-    sellerId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: [true, 'Seller is required'],
-    },
-    // additional notes
-    notes: {
-        type: String,
-        default: '',
-    },
-    //payment tracking
-    paymentDate: {
-        type: Date,
-        default: null,
-    },
-    paymentMethod: {
-        type: String,
-        enum: ['cash', 'credit_card', 'bank_transfer', 'check', 'other'],
-        default: null,
-    },
-    //timestamp
-    createdAt: {
-        type: Date,
-        default: Date.now,
-    },
+  },
+
+  // Status
+  status: {
+    type: String,
+    enum: ["draft", "sent", "paid", "overdue", "cancelled"],
+    default: "draft",
+  },
+
+  // Seller
+  sellerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+
+  // Notes & payment
+  notes: {
+    type: String,
+    default: "",
+  },
+  paymentDate: {
+    type: Date,
+    default: null,
+  },
+  paymentMethod: {
+    type: String,
+    enum: ["cash", "credit_card", "bank_transfer", "check", "other"],
+    default: null,
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-/** Pre-Save Hook
- * 
- * Automatically calculates:
- * 1. Tax amount based on taxPercentage
- * 2. Total amount (Subtotal + tax)
- */
-
-InvoiceSchema.pre('save', function() {
-    //calculate tax amount
-    if (this.subtotal && this.taxPercentage) {
-        this.taxAmount = (this.subtotal * this.taxPercentage) / 100;
-    }
-    // calculate total amount
-    if (this.subtotal && this.taxPercentage >= 0) {
-        this.totalAmount = this.subtotal + this.taxAmount;
-    }
+// Pre-save hook
+InvoiceSchema.pre("save", function() {
+  if (this.items && this.items.length > 0) {
+    this.taxAmount = (this.subtotal * this.taxPercentage) / 100;
+    this.totalAmount = this.subtotal + this.taxAmount;
+  }
 });
 
-module.exports = mongoose.model('Invoice', InvoiceSchema);
+module.exports = mongoose.model("Invoice", InvoiceSchema);
