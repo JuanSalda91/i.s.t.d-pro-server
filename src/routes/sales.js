@@ -8,12 +8,19 @@ const {
     updateSaleStatus,
     deleteSale,
     getSalesStats,
+    getSalesReport,
 } = require('../controllers/saleController.js');
 
 const { protect, authorize } = require('../middleware/auth.js');
 
 // Create a new sale
 router.post('/', protect, createSale);
+
+// Get sales report
+router.get('/report', protect, getSalesReport);
+
+// Get sales statistics (admin only)
+router.get('/stats', protect, authorize('admin'), getSalesStats);
 
 // Get all sales (admin only)
 router.get('/', protect, authorize('admin'), getSales);
@@ -26,8 +33,5 @@ router.put('/:id', protect, updateSaleStatus);
 
 // Delete a sale (seller only)
 router.delete('/:id', protect, deleteSale);
-
-// Get sales statistics (admin only)
-router.get('/stats', protect, authorize('admin'), getSalesStats);
 
 module.exports = router;
