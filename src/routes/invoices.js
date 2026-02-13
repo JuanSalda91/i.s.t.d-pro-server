@@ -35,18 +35,18 @@ const { protect, authorize} = require('../middleware/auth.js');
  * Some routes require admin authorization
  */
 
-//Get invoice statistics (admin Only)
-router.get('/stats', protect, authorize('admin'), getInvoiceStats);
-
-//Get invoice by status (protected)
-router.get('/status/:status', protect, getInvoicesByStatus);
-
 //Create new invoice
 //generate invoice from exisitng sale
 router.post('/', protect, createInvoice);
 
 //Get all invoices(admin Only)
 router.get('/', protect, authorize('admin'), getInvoices);
+
+//Get invoice statistics (admin Only)
+router.get('/stats', protect, authorize('admin'), getInvoiceStats);
+
+//Get invoice by status (protected)
+router.get('/status/:status', protect, getInvoicesByStatus);
 
 //Get single invoice by ID (protected)
 router.get('/:id', protect, getInvoiceById);
