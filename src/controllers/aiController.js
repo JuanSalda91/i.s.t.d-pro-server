@@ -1,7 +1,9 @@
-const { GoogleGenAI } = require('@google/genai');
+// const { GoogleGenAI } = require('@google/genai');
 const Product = require('../models/Product.js');
 
-const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, });
+const { generateProductDescription } = require('../services/aiService.js');
+
+// const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, });
 
 /**
  * POST /api/ai/generate-description
@@ -45,17 +47,21 @@ exports.generateProductDescription = async (req, res) => {
         `;
 
         // Call Gemini via Google Gen AI SDK
-        const response = await client.models.generateContent({
-          model: 'gemini-2.0-flash',
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: prompt }],
-            },
-          ],
-        });
+        // const response = await client.models.generateContent({
+        //   model: 'gemini-2.0-flash',
+        //   contents: [
+        //     {
+        //       role: 'user',
+        //       parts: [{ text: prompt }],
+        //     },
+        //   ],
+        // });
         
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';        
+        // const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';        
+
+        // Call AI service (currently mocked)
+        const text = await generateProductDescription(prompt);
+
 
         // if productId is provided, save description back to DB
         let updatedProduct = null;
@@ -75,12 +81,12 @@ exports.generateProductDescription = async (req, res) => {
     } catch (error) {
         console.error('Error generating product description:', error);
         //handle common Gemini errors
-        if (error.response && error.response.status) {
-            return res.status(error.response.status).json({
-                message: 'Gemini API error',
-                error: error.message,
-            });
-        }
+        // if (error.response && error.response.status) {
+        //     return res.status(error.response.status).json({
+        //         message: 'Gemini API error',
+        //         error: error.message,
+        //     });
+        // }
         res.status(500).json({
             message: 'Error generating product description',
             error: error.message,
