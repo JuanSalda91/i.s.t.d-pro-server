@@ -153,44 +153,53 @@ exports.getInvoiceById = async (req, res) => {
 // UPDATE INVOICE STATUS
 exports.updateInvoiceStatus = async (req, res) => {
     try {
-        const { status, paymentDate, paymentMethod, notes } = req.body;
-
-        const invoice = await Invoice.findById(req.params.id);
-
-        if (!invoice) {
-            return res.status(404).json({ message: 'Invoice not found'});
+      const { status, paymentDate, paymentMethod, notes } = req.body;
+  
+      const invoice = await Invoice.findById(req.params.id);
+  
+      if (!invoice) {
+        return res.status(404).json({ message: 'Invoice not found' });
+      }
+  
+      if (invoice.sellerId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorizrd to update this invoice' });
+      }
+  
+      if (status) {
+        const normalizedStatus = status.toLowerCase().trim();
+        const allowedStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
+  
+        if (!allowedStatuses.includes(normalizedStatus)) {
+          return res
+            .status(400)
+            .json({ message: `Invalid status. Must be one of: ${allowedStatuses.join(', ')}` });
         }
-
-        if (invoice.sellerId.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: 'Not authorizrd to update this invoice'});
+  
+        invoice.status = normalizedStatus;
+  
+        if (normalizedStatus === 'paid') {
+          invoice.paymentDate = paymentDate || new Date();
+          if (paymentMethod) {
+            invoice.paymentMethod = paymentMethod;
+          }
         }
-
-        if (status) {
-            invoice.status = status;
-
-            if (status === 'paid') {
-                invoice.paymentDate = paymentDate || new Date();
-                if (paymentMethod) {
-                    invoice.paymentMethod = paymentMethod;
-                }
-            }
-        }
-
-        if (notes) {
-            invoice.notes = notes;
-        }
-
-        const updatedInvoice = await invoice.save();
-
-        await updatedInvoice.populate('saleId');
-        await updatedInvoice.populate('sellerId', 'name email');
-
-        res.status(200).json({ message: 'Invoice updated successfully'});
+      }
+  
+      if (notes) {
+        invoice.notes = notes;
+      }
+  
+      const updatedInvoice = await invoice.save();
+  
+      await updatedInvoice.populate('saleId');
+      await updatedInvoice.populate('sellerId', 'name email');
+  
+      res.status(200).json({ message: 'Invoice updated successfully' });
     } catch (error) {
-        console.error('Error in updateInvoiceStatus:', error);
-        res.status(500).json({ message: 'Error updating invoice', error: error.message});
+      console.error('Error in updateInvoiceStatus:', error);
+      res.status(500).json({ message: 'Error updating invoice', error: error.message });
     }
-};
+  };
 
 // DELETE INVOICE
 exports.deleteInvoice = async (req, res) => {
@@ -221,58 +230,75 @@ exports.deleteInvoice = async (req, res) => {
 //GET INVOICE STATISTICS
 exports.getInvoiceStats = async (req, res) => {
     try {
-        const totalInvoices = await Invoice.countDocuments();
-
-        const paidStats = await Invoice.aggregate([
-            { $match: {status: 'paid '} },
-            {
-                $group: {
-                    _id: null,
-                    totalRevenue: { $sum: "$totalAmount" },
-                    paidCount: { $sum: 1 }
-                }
-            }
-        ]);
-
-        const unpaidStats = await Invoice.aggregate([
-            { $match: { status: { $in: ['draft', 'sent', 'overdue'] } } },
-            {
-                $group: {
-                    _id: null,
-                    pendingAmount: { $sum: '$totalAmount' },
-                    unpaidCount: { $sum: 1 }
-                }
-            }
-        ]);
-
-        const avgStats = await Invoice.aggregate([
-            {
-                $group: {
-                    _id: null,
-                    averageAmount: { $avg: '$totalAmount' }
-                }
-            }
-        ]);
-
-        const paid = paidStats.length > 0 ? paidStats[0] : { totalRevenuw: 0, paidCount: 0 };
-        const unpaid = unpaidStats.length > 0 ? unpaidStats[0] : { pendingAmount: 0, unpaidCount };
-        const avg = avgStats.length > 0? avgStats[0].averageAmount: 0;
-
-        res.status(200).json({
-            stats: {
-                totalInvoices,
-                totalRevenue: Math.round(paid.totalRevenue * 100) / 100,
-                paidInvoices: paid.paidCount,
-                unpaidInvoices: unpaid.unpaidCount,
-                pendingAmount: Math.round(unpaid.pendingAmount * 100) / 100,
-                averageInvoiceAmount: Math.round(avg * 100) / 100
-            }
-        });
+      // 1) Total number of invoices
+      const totalInvoices = await Invoice.countDocuments();
+  
+      // 2) Stats for PAID invoices
+      const paidStats = await Invoice.aggregate([
+        { $match: { status: 'paid' } },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: '$totalAmount' },
+            paidCount: { $sum: 1 },
+          },
+        },
+      ]);
+  
+      // 3) Stats for UNPAID invoices (draft, sent, overdue)
+      const unpaidStats = await Invoice.aggregate([
+        { $match: { status: { $in: ['draft', 'sent', 'overdue'] } } },
+        {
+          $group: {
+            _id: null,
+            pendingAmount: { $sum: '$totalAmount' },
+            unpaidCount: { $sum: 1 },
+          },
+        },
+      ]);
+  
+      // 4) Average invoice amount over ALL invoices
+      const avgStats = await Invoice.aggregate([
+        {
+          $group: {
+            _id: null,
+            averageAmount: { $avg: '$totalAmount' },
+          },
+        },
+      ]);
+  
+      // ---- SAFE DEFAULTS ----
+      const paid =
+        paidStats.length > 0
+          ? paidStats[0]
+          : { totalRevenue: 0, paidCount: 0 };
+  
+      const unpaid =
+        unpaidStats.length > 0
+          ? unpaidStats[0]
+          : { pendingAmount: 0, unpaidCount: 0 };
+  
+      const avg =
+        avgStats.length > 0 ? avgStats[0].averageAmount : 0;
+  
+      // 5) Response matching your dashboard expectations
+      res.status(200).json({
+        stats: {
+          totalInvoices,
+          totalRevenue: Math.round(paid.totalRevenue * 100) / 100,
+          paidInvoices: paid.paidCount,
+          unpaidInvoices: unpaid.unpaidCount, // draft + sent + overdue
+          pendingAmount: Math.round(unpaid.pendingAmount * 100) / 100,
+          averageInvoiceAmount: Math.round(avg * 100) / 100,
+        },
+      });
     } catch (error) {
-        console.error('Error in getInvoicesStats', error)
-        res.status(500).json({ message: 'Error fetching statistics', error: error.message });
+      console.error('Error in getInvoicesStats', error);
+      res
+        .status(500)
+        .json({ message: 'Error fetching statistics', error: error.message });
     }
-};
+  };
 
 /**GET INVOICES BY STATUS
  * What: Retrieve invoices filtered by specific status
