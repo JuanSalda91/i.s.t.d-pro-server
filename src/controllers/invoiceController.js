@@ -228,7 +228,7 @@ exports.getInvoiceStats = async (req, res) => {
             {
                 $group: {
                     _id: null,
-                    totalRevenue: { $sum: $totalAmount },
+                    totalRevenue: { $sum: "$totalAmount" },
                     paidCount: { $sum: 1 }
                 }
             }
