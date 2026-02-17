@@ -19,7 +19,7 @@ const generateInvoiceNumber = async () => {
 
         let count = 0;
         if (lastInvoice) {
-            const matches = lastInvoice.invoiceNumber.match(/INV-\d+-(d+)/);
+            const matches = lastInvoice.invoiceNumber.match(/INV-\d+-(\d+)/);
             if (matches) {
                 count = parseInt(matches[1]);
             }
