@@ -96,7 +96,7 @@ exports.getSales = async (req, res) => {
 
         // fetch sales with pagination and populate references
         const sales = await Sale.find(filter)
-        .populate('productId', 'name price category') // get only specific product fields
+        .populate('items.productId', 'name price category') // get only specific product fields
         .populate('sellerId', 'email name') // get only specific seller fields
         .limit(limit * 1) //limit result for pagination
         .skip((page - 1) * limit) // skip for pagination
@@ -119,7 +119,7 @@ exports.getSales = async (req, res) => {
 exports.getSaleById = async (req, res) => {
     try {
         const sale = await Sale.findById(req.params.id)
-        .populate('productId')
+        .populate('items.productId')
         .populate('sellerId', 'email name');
 
         if (!sale) {
