@@ -1,30 +1,19 @@
-# I.S.T.D PRO (Backend / Server Side and Database)
+# 🧭 I.S.T.D PRO — Inventory & Sales Tracker Dashboard
 
-Inventory and sales management system built with modern web technologies.
+The I.S.T.D PRO backend is a RESTful API built with Node.js, Express, MongoDB Atlas, and Mongoose to power the inventory, sales, and invoicing features of the dashboard. It handles business logic, data persistence, and secure communication with the frontend client.
 
-The Backend handles all business logic, user authentication, product management, sales processing, and inventory tracking.
+## ✨ Core Responsibilities:
 
-Backend (Server)           
-┌─────────────────────────────────────────────────┐              
-│Node.js + Express                                              
-│├── Authentication Routes (/api/auth)                         
-│├── Products Routes (/api/products)                            
-│├── Sales Routes (/api/sales)                                  
-│├── Invoices Routes (/api/invoices)                            
-│├── AI Routes (/api/ai)                                       
-││   ├── POST /generate-description                             
-││   ├── POST /suggest-discount                               
-││   ├── POST /sales-analysis                                   
-││   └── POST /inventory-insights                              
-│├── Middleware (JWT verification, error handling)              
-│└── Controllers (business logic)                                                                                       
-└─────────────────────────────────────────────────┘   
+- Manage inventory items (create, read, update, delete).
+- Handle sales records and link them to inventory items.
+- Generate and store invoice data for each sale.
+- Provide structured JSON responses for the frontend dashboard.
+- Support printable invoice workflows by exposing invoice endpoints for PDF generation on the frontend.
 
-Database        
-┌────────────────────────────────────────────────────────────────┐
-│Collections:                                                   
-│├── Users (name, email, password, role)                        
-│├── Products (sku, name, price, stock, cost, description, etc.)
-│├── Sales (items array, total, tax, discount, etc.)            
-│└── Invoices (invoice number, sale reference, PDF URL)        
-└────────────────────────────────────────────────────────────────┘
+## 🧰 Tech Stack:
+
+- Runtime: Node.js
+- Framework: Express
+- Database: MongoDB Atlas (cloud-hosted MongoDB)
+- ODM: Mongoose for schema definitions and data modeling
+- Environment Management: dotenv (for environment variables like DB connection string, ports, etc.)
