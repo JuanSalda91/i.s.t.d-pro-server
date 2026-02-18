@@ -2,6 +2,10 @@
 
 The I.S.T.D PRO backend is a RESTful API built with Node.js, Express, MongoDB Atlas, and Mongoose to power the inventory, sales, and invoicing features of the dashboard. It handles business logic, data persistence, and secure communication with the frontend client.
 
+## Deployment with Render:
+
+![I.S.T.D PRO Render](src/assets/Render.png)
+
 ## ✨ Core Responsibilities:
 
 - Manage inventory items (create, read, update, delete).
