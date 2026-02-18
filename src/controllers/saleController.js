@@ -150,7 +150,7 @@ exports.updateSaleStatus = async (req, res) => {
 
         //save updated sale
         const updatedSale = await sale.save();
-        await updatedSale.populate('productId');
+        /**awaitupdatedSale.populate('productId');*/
         await updatedSale.populate('sellerId', 'email name');
         res.status(200).json({
             message: 'Sale updated successfully',
