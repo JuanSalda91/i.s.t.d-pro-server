@@ -1,35 +1,40 @@
 const PDFDocument = require('pdfkit');
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
+// ─── Design Tokens — matches dashboard brand palette ─────────────────────────
 const COLORS = {
-  primary:   '#1a3c5e',
-  accent:    '#2e86c1',
-  light:     '#eaf4fb',
-  border:    '#b0cfe8',
-  textDark:  '#1c2833',
-  textMid:   '#566573',
-  textLight: '#aab7c4',
-  white:     '#ffffff',
-  rowAlt:    '#f4f9fd',
+  navyDark:   '#0f1b3d',   // sidebar dark end
+  navyMid:    '#1a2f6b',   // sidebar top / header bg
+  blue:       '#3B5CD4',   // primary brand blue
+  cyan:       '#3A96D4',   // accent cyan
+  green:      '#33B833',   // paid / success
+  orange:     '#f59e0b',   // pending
+  red:        '#ef4444',   // overdue / cancelled
+  slate50:    '#f8fafc',   // card background
+  slate100:   '#f1f5f9',   // alternate row
+  slate200:   '#e2e8f0',   // borders
+  slate400:   '#94a3b8',   // muted text
+  slate600:   '#475569',   // secondary text
+  slate800:   '#1e293b',   // primary text
+  white:      '#ffffff',
 };
 
 const MARGIN    = 50;
-const PAGE_W    = 595.28;  // A4 width in pt
-const PAGE_H    = 841.89;  // A4 height in pt
+const PAGE_W    = 595.28;
+const PAGE_H    = 841.89;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
 // ─── Layout boundaries ────────────────────────────────────────────────────────
-const BANNER_H    = 80;
-const FOOTER_H    = 32;
+const BANNER_H    = 72;
+const FOOTER_H    = 30;
 const BODY_TOP    = BANNER_H + 4;
-const BODY_BOTTOM = PAGE_H - FOOTER_H - 8; // content must never exceed this Y
+const BODY_BOTTOM = PAGE_H - FOOTER_H - 8;
 
 // Table column definitions
 const COL = {
-  product:   { x: MARGIN,       w: 180 },
-  qty:       { x: MARGIN + 185, w:  55 },
-  unitPrice: { x: MARGIN + 245, w:  90 },
-  total:     { x: MARGIN + 340, w:  95 },
+  product:   { x: MARGIN,       w: 190 },
+  qty:       { x: MARGIN + 195, w:  50 },
+  unitPrice: { x: MARGIN + 250, w:  95 },
+  total:     { x: MARGIN + 350, w:  95 },
 };
 
 // ─── Drawing helpers ──────────────────────────────────────────────────────────
@@ -38,7 +43,7 @@ function fillRect(doc, x, y, w, h, color) {
   doc.save().rect(x, y, w, h).fill(color).restore();
 }
 
-function hRule(doc, y, color = COLORS.border, x = MARGIN, w = CONTENT_W) {
+function hRule(doc, y, color = COLORS.slate200, x = MARGIN, w = CONTENT_W) {
   doc.save().moveTo(x, y).lineTo(x + w, y).lineWidth(0.5).strokeColor(color).stroke().restore();
 }
 
@@ -48,91 +53,107 @@ function fmtDate(d) {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-// ─── Sticky header & footer (painted on every page) ──────────────────────────
-
-function drawPageHeader(doc, invoice) {
-  fillRect(doc, 0, 0, PAGE_W, BANNER_H, COLORS.primary);
-
-  doc
-    .font('Helvetica-Bold').fontSize(22).fillColor(COLORS.white)
-    .text('I.S.T.D PRO', MARGIN, 22, { continued: true })
-    .font('Helvetica').fontSize(14).fillColor('#a9cce3')
-    .text('  ·  Invoice', { continued: false });
-
-  doc
-    .font('Helvetica').fontSize(9).fillColor('#a9cce3')
-    .text('Powered by I.S.T.D PRO Platform', MARGIN, 48);
-
-  doc
-    .font('Helvetica-Bold').fontSize(11).fillColor(COLORS.white)
-    .text(`#${invoice.invoiceNumber}`, PAGE_W - MARGIN - 130, 22, { width: 130, align: 'right' });
-
-  const statusColor = invoice.status === 'Paid' ? '#27ae60' : '#e67e22';
-  doc.roundedRect(PAGE_W - MARGIN - 75, 40, 75, 20, 4).fill(statusColor);
-  doc
-    .font('Helvetica-Bold').fontSize(9).fillColor(COLORS.white)
-    .text(invoice.status.toUpperCase(), PAGE_W - MARGIN - 75, 46, { width: 75, align: 'center' });
+// ─── Status badge color ───────────────────────────────────────────────────────
+function statusColor(status) {
+  switch ((status || '').toLowerCase()) {
+    case 'paid':      return COLORS.green;
+    case 'pending':   return COLORS.orange;
+    case 'overdue':   return COLORS.red;
+    case 'cancelled': return COLORS.red;
+    case 'sent':      return COLORS.blue;
+    default:          return COLORS.slate400; // draft
+  }
 }
 
+// ─── Sticky header ────────────────────────────────────────────────────────────
+function drawPageHeader(doc, invoice) {
+  // Navy background
+  fillRect(doc, 0, 0, PAGE_W, BANNER_H, COLORS.navyMid);
+
+  // Bottom accent stripe
+  fillRect(doc, 0, BANNER_H - 3, PAGE_W, 3, COLORS.blue);
+
+  // Brand icon square
+  const iconX = MARGIN;
+  const iconY = 16;
+  doc.save().roundedRect(iconX, iconY, 32, 32, 6).fill(COLORS.blue).restore();
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(COLORS.white)
+     .text('i', iconX + 11, iconY + 7, { lineBreak: false });
+
+  // Brand name + subtitle
+  doc.font('Helvetica-Bold').fontSize(14).fillColor(COLORS.white)
+     .text('I.S.T.D PRO', iconX + 42, iconY + 4, { lineBreak: false });
+  doc.font('Helvetica').fontSize(8).fillColor('#7ea8d4')
+     .text('Management Platform', iconX + 42, iconY + 21, { lineBreak: false });
+
+  // Invoice number (right side)
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.white)
+     .text(`Invoice #${invoice.invoiceNumber}`, PAGE_W - MARGIN - 160, iconY + 2, {
+       width: 160, align: 'right', lineBreak: false,
+     });
+
+  // Status pill
+  const sc     = statusColor(invoice.status);
+  const badgeW = 74;
+  const badgeX = PAGE_W - MARGIN - badgeW;
+  const badgeY = iconY + 19;
+  doc.save().roundedRect(badgeX, badgeY, badgeW, 15, 7).fill(sc).restore();
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.white)
+     .text((invoice.status || 'Draft').toUpperCase(), badgeX, badgeY + 4, {
+       width: badgeW, align: 'center', lineBreak: false,
+     });
+}
+
+// ─── Sticky footer ────────────────────────────────────────────────────────────
 function drawPageFooter(doc, pageNumber) {
   const fy = PAGE_H - FOOTER_H;
-  hRule(doc, fy, COLORS.border);
-  doc
-    .font('Helvetica').fontSize(8).fillColor(COLORS.textLight)
-    .text(
-      `Generated by I.S.T.D PRO  ·  ${new Date().toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
-      })}`,
-      MARGIN, fy + 10,
-      { width: CONTENT_W / 2, align: 'left' }
-    )
-    .text(
-      `Page ${pageNumber}`,
-      MARGIN, fy + 10,
-      { width: CONTENT_W, align: 'right' }
-    );
+  hRule(doc, fy, COLORS.slate200);
+  doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.slate400)
+     .text(
+       `Generated by I.S.T.D PRO  ·  ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+       MARGIN, fy + 10,
+       { width: CONTENT_W / 2, align: 'left', lineBreak: false }
+     )
+     .text(
+       `Page ${pageNumber}`,
+       MARGIN, fy + 10,
+       { width: CONTENT_W, align: 'right', lineBreak: false }
+     );
 }
 
-// ─── Table header row (re-drawn when a page break splits the item list) ───────
+// ─── Section label ────────────────────────────────────────────────────────────
+function drawSectionLabel(doc, label, x, y) {
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.blue)
+     .text(label.toUpperCase(), x, y, { characterSpacing: 1, lineBreak: false });
+  const tw = doc.widthOfString(label.toUpperCase(), { characterSpacing: 1 });
+  doc.save()
+     .moveTo(x, y + 11).lineTo(x + tw + 24, y + 11)
+     .lineWidth(1).strokeColor(COLORS.blue).stroke()
+     .restore();
+}
 
-const TH_H = 24;
+// ─── Table header row ─────────────────────────────────────────────────────────
+const TH_H = 26;
 
 function drawTableHeader(doc, y) {
-  fillRect(doc, MARGIN, y, CONTENT_W, TH_H, COLORS.primary);
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.white);
-  doc.text('PRODUCT / DESCRIPTION', COL.product.x + 6,   y + 8, { width: COL.product.w,   lineBreak: false });
-  doc.text('QTY',                   COL.qty.x,            y + 8, { width: COL.qty.w,       align: 'center', lineBreak: false });
-  doc.text('UNIT PRICE',            COL.unitPrice.x,      y + 8, { width: COL.unitPrice.w, align: 'right',  lineBreak: false });
-  doc.text('TOTAL',                 COL.total.x,          y + 8, { width: COL.total.w,     align: 'right',  lineBreak: false });
+  fillRect(doc, MARGIN, y, CONTENT_W, TH_H, COLORS.navyMid);
+  fillRect(doc, MARGIN, y, 3, TH_H, COLORS.cyan); // left accent stripe
+
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.white);
+  doc.text('PRODUCT / DESCRIPTION', COL.product.x + 10,  y + 9, { width: COL.product.w,   lineBreak: false });
+  doc.text('QTY',                   COL.qty.x,            y + 9, { width: COL.qty.w,       align: 'center', lineBreak: false });
+  doc.text('UNIT PRICE',            COL.unitPrice.x,      y + 9, { width: COL.unitPrice.w, align: 'right',  lineBreak: false });
+  doc.text('TOTAL',                 COL.total.x,          y + 9, { width: COL.total.w,     align: 'right',  lineBreak: false });
   return y + TH_H;
 }
 
 // ─── Main generator ───────────────────────────────────────────────────────────
-
-/**
- * Generates a polished invoice PDF into the given writable stream.
- *
- * The header banner and footer are "sticky" — they are painted on every page,
- * including any overflow pages created when the item list is long.
- * Content is constrained to BODY_TOP … BODY_BOTTOM so it never overlaps them.
- *
- * @param {object} invoice  Populated invoice document
- * @param {Stream} stream   Writable stream (Express res or fs.createWriteStream)
- */
 function generateInvoicePdf(invoice, stream) {
-  const doc = new PDFDocument({
-    margin: 0,       // we handle all positioning manually
-    size: 'A4',
-    autoFirstPage: false,
-  });
-
+  const doc = new PDFDocument({ margin: 0, size: 'A4', autoFirstPage: false });
   doc.pipe(stream);
-
-  // ── Page helpers ──────────────────────────────────────────────────────────
 
   let pageNumber = 0;
 
-  /** Add a page and stamp header + footer immediately */
   function addPage() {
     pageNumber++;
     doc.addPage();
@@ -140,11 +161,6 @@ function generateInvoicePdf(invoice, stream) {
     drawPageFooter(doc, pageNumber);
   }
 
-  /**
-   * If `neededHeight` no longer fits between curY and BODY_BOTTOM,
-   * add a new page and return the fresh starting Y (BODY_TOP + padding).
-   * Otherwise return curY unchanged.
-   */
   function ensureSpace(curY, neededHeight) {
     if (curY + neededHeight > BODY_BOTTOM) {
       addPage();
@@ -156,131 +172,141 @@ function generateInvoicePdf(invoice, stream) {
   // ── Page 1 ────────────────────────────────────────────────────────────────
   addPage();
 
-  // ── Meta strip (invoice date / due date) ──────────────────────────────────
-  const META_Y = BANNER_H + 18;
-  fillRect(doc, MARGIN, META_Y, CONTENT_W, 52, COLORS.light);
-  doc.save().rect(MARGIN, META_Y, CONTENT_W, 52).lineWidth(0.5).strokeColor(COLORS.border).stroke().restore();
+  // ── Meta strip — dates card ───────────────────────────────────────────────
+  const META_Y = BANNER_H + 16;
+  fillRect(doc, MARGIN, META_Y, CONTENT_W, 50, COLORS.slate50);
+  doc.save().rect(MARGIN, META_Y, CONTENT_W, 50)
+     .lineWidth(0.5).strokeColor(COLORS.slate200).stroke().restore();
+  fillRect(doc, MARGIN, META_Y, 3, 50, COLORS.blue); // left accent
 
-  const dc1 = MARGIN + 14;
-  const dc2 = MARGIN + CONTENT_W / 2 + 10;
-  doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.textMid)
-     .text('INVOICE DATE', dc1, META_Y + 10)
-     .text('DUE DATE',     dc2, META_Y + 10);
-  doc.font('Helvetica').fontSize(10).fillColor(COLORS.textDark)
-     .text(fmtDate(invoice.invoiceDate), dc1, META_Y + 23)
-     .text(fmtDate(invoice.dueDate),     dc2, META_Y + 23);
+  const col1 = MARGIN + 16;
+  const col2 = MARGIN + CONTENT_W / 2 + 10;
 
-  // ── Bill To ───────────────────────────────────────────────────────────────
-  let curY = META_Y + 72;
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.slate400)
+     .text('INVOICE DATE', col1, META_Y + 10, { lineBreak: false })
+     .text('DUE DATE',     col2, META_Y + 10, { lineBreak: false });
 
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.accent).text('BILL TO', MARGIN, curY);
-  hRule(doc, curY + 13, COLORS.accent, MARGIN, 80);
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.slate800)
+     .text(fmtDate(invoice.invoiceDate), col1, META_Y + 25, { lineBreak: false })
+     .text(fmtDate(invoice.dueDate),     col2, META_Y + 25, { lineBreak: false });
+
+  // ── Bill To card ──────────────────────────────────────────────────────────
+  let curY = META_Y + 70;
+  drawSectionLabel(doc, 'Bill To', MARGIN, curY);
   curY += 20;
 
-  doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.textDark).text(invoice.customerName, MARGIN, curY);
-  curY += 15;
-  doc.font('Helvetica').fontSize(10).fillColor(COLORS.textMid).text(invoice.customerEmail, MARGIN, curY);
-  curY += 13;
+  const custH = invoice.customerPhone ? 64 : 50;
+  fillRect(doc, MARGIN, curY, CONTENT_W, custH, COLORS.slate50);
+  doc.save().rect(MARGIN, curY, CONTENT_W, custH)
+     .lineWidth(0.5).strokeColor(COLORS.slate200).stroke().restore();
+  fillRect(doc, MARGIN, curY, 3, custH, COLORS.cyan);
+
+  doc.font('Helvetica-Bold').fontSize(12).fillColor(COLORS.slate800)
+     .text(invoice.customerName, MARGIN + 16, curY + 10, { lineBreak: false });
+  doc.font('Helvetica').fontSize(9.5).fillColor(COLORS.slate600)
+     .text(invoice.customerEmail, MARGIN + 16, curY + 27, { lineBreak: false });
   if (invoice.customerPhone) {
-    doc.text(invoice.customerPhone, MARGIN, curY);
-    curY += 13;
+    doc.font('Helvetica').fontSize(9).fillColor(COLORS.slate400)
+       .text(invoice.customerPhone, MARGIN + 16, curY + 43, { lineBreak: false });
   }
 
+  curY += custH + 26;
+
   // ── Line Items ────────────────────────────────────────────────────────────
-  curY += 20;
   curY = ensureSpace(curY, 60);
+  drawSectionLabel(doc, 'Line Items', MARGIN, curY);
+  curY += 20;
 
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.accent).text('LINE ITEMS', MARGIN, curY);
-  hRule(doc, curY + 13, COLORS.accent, MARGIN, 110);
-  curY += 22;
-
-  // Draw the initial table header
-  curY = ensureSpace(curY, TH_H + 22);
+  curY = ensureSpace(curY, TH_H + 24);
   curY = drawTableHeader(doc, curY);
 
-  // Track the top of the current table segment for the outer border
   let tableSegmentTopY = curY - TH_H;
-  let prevPageNum      = pageNumber;
 
   invoice.items.forEach((item, idx) => {
-    const ROW_H = 22;
-    const beforeY    = curY;
-    const beforePage = pageNumber;
+    const ROW_H    = 24;
+    const beforeY  = curY;
+    const beforePg = pageNumber;
 
     curY = ensureSpace(curY, ROW_H);
 
-    // Page break happened — close the previous table segment's border,
-    // then re-draw the column headers on the new page.
-    if (pageNumber !== beforePage) {
+    if (pageNumber !== beforePg) {
       doc.save()
          .rect(MARGIN, tableSegmentTopY, CONTENT_W, beforeY - tableSegmentTopY)
-         .lineWidth(0.5).strokeColor(COLORS.border).stroke()
-         .restore();
-
+         .lineWidth(0.5).strokeColor(COLORS.slate200).stroke().restore();
       curY = drawTableHeader(doc, curY);
       tableSegmentTopY = curY - TH_H;
     }
 
-    const rowBg = idx % 2 === 0 ? COLORS.white : COLORS.rowAlt;
+    const rowBg = idx % 2 === 0 ? COLORS.white : COLORS.slate100;
     fillRect(doc, MARGIN, curY, CONTENT_W, ROW_H, rowBg);
+    if (idx % 2 === 0) fillRect(doc, MARGIN, curY, 3, ROW_H, COLORS.slate200);
 
-    doc.font('Helvetica').fontSize(10).fillColor(COLORS.textDark);
-    doc.text(item.productName,                COL.product.x + 6,  curY + 6, { width: COL.product.w,   lineBreak: false });
-    doc.text(String(item.quantity),           COL.qty.x,           curY + 6, { width: COL.qty.w,       align: 'center', lineBreak: false });
-    doc.text(`$${item.unitPrice.toFixed(2)}`, COL.unitPrice.x,     curY + 6, { width: COL.unitPrice.w, align: 'right',  lineBreak: false });
-    doc.text(`$${item.itemTotal.toFixed(2)}`, COL.total.x,         curY + 6, { width: COL.total.w,     align: 'right',  lineBreak: false });
+    doc.font('Helvetica').fontSize(9.5).fillColor(COLORS.slate800)
+       .text(item.productName, COL.product.x + 10, curY + 7, { width: COL.product.w, lineBreak: false });
 
-    hRule(doc, curY + ROW_H, COLORS.border);
+    doc.font('Helvetica').fontSize(9.5).fillColor(COLORS.slate600)
+       .text(String(item.quantity),           COL.qty.x,       curY + 7, { width: COL.qty.w,       align: 'center', lineBreak: false })
+       .text(`$${item.unitPrice.toFixed(2)}`, COL.unitPrice.x, curY + 7, { width: COL.unitPrice.w, align: 'right',  lineBreak: false });
+
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(COLORS.slate800)
+       .text(`$${item.itemTotal.toFixed(2)}`, COL.total.x, curY + 7, { width: COL.total.w, align: 'right', lineBreak: false });
+
+    hRule(doc, curY + ROW_H, COLORS.slate200);
     curY += ROW_H;
   });
 
-  // Close the final table segment border
+  // Close final table border
   doc.save()
      .rect(MARGIN, tableSegmentTopY, CONTENT_W, curY - tableSegmentTopY)
-     .lineWidth(0.5).strokeColor(COLORS.border).stroke()
-     .restore();
+     .lineWidth(0.5).strokeColor(COLORS.slate200).stroke().restore();
 
-  // ── Totals block ──────────────────────────────────────────────────────────
-  const TOTALS_H = 80;
+  // ── Totals card ───────────────────────────────────────────────────────────
+  const TOTALS_H = 90;
   curY += 20;
   curY = ensureSpace(curY, TOTALS_H);
 
-  const TOTALS_W = 220;
+  const TOTALS_W = 230;
   const TOTALS_X = MARGIN + CONTENT_W - TOTALS_W;
-  const labelX   = TOTALS_X + 12;
+  const labelX   = TOTALS_X + 14;
 
-  fillRect(doc, TOTALS_X, curY, TOTALS_W, TOTALS_H, COLORS.light);
-  doc.save().rect(TOTALS_X, curY, TOTALS_W, TOTALS_H).lineWidth(0.5).strokeColor(COLORS.border).stroke().restore();
+  fillRect(doc, TOTALS_X, curY, TOTALS_W, TOTALS_H, COLORS.slate50);
+  doc.save().rect(TOTALS_X, curY, TOTALS_W, TOTALS_H)
+     .lineWidth(0.5).strokeColor(COLORS.slate200).stroke().restore();
+  fillRect(doc, TOTALS_X, curY, TOTALS_W, 3, COLORS.blue); // top accent
 
-  function totalRow(label, value, y, bold = false, big = false) {
-    const font  = bold ? 'Helvetica-Bold' : 'Helvetica';
-    const size  = big  ? 13 : 10;
-    const color = big  ? COLORS.primary : COLORS.textDark;
-    doc.font(font).fontSize(size).fillColor(COLORS.textMid).text(label, labelX, y);
-    doc.font(font).fontSize(size).fillColor(color).text(value, labelX, y, { width: TOTALS_W - 24, align: 'right' });
+  function totalRow(label, value, y, highlight = false) {
+    doc.font('Helvetica').fontSize(9.5).fillColor(COLORS.slate600)
+       .text(label, labelX, y, { lineBreak: false });
+    doc.font(highlight ? 'Helvetica-Bold' : 'Helvetica')
+       .fontSize(highlight ? 12 : 9.5)
+       .fillColor(highlight ? COLORS.blue : COLORS.slate800)
+       .text(value, labelX, y, { width: TOTALS_W - 28, align: 'right', lineBreak: false });
   }
 
-  totalRow('Subtotal',                        `$${invoice.subtotal.toFixed(2)}`,    curY + 12);
-  totalRow(`Tax (${invoice.taxPercentage}%)`, `$${invoice.taxAmount.toFixed(2)}`,   curY + 30);
-  hRule(doc, curY + 52, COLORS.border, TOTALS_X + 12, TOTALS_W - 24);
-  totalRow('Total Due',                       `$${invoice.totalAmount.toFixed(2)}`, curY + 58, true, true);
+  totalRow('Subtotal',                        `$${invoice.subtotal.toFixed(2)}`,    curY + 14);
+  totalRow(`Tax (${invoice.taxPercentage}%)`, `$${invoice.taxAmount.toFixed(2)}`,   curY + 33);
+  hRule(doc, curY + 56, COLORS.slate200, labelX, TOTALS_W - 28);
+  totalRow('Total Due',                       `$${invoice.totalAmount.toFixed(2)}`, curY + 64, true);
 
-  curY += TOTALS_H + 20;
+  curY += TOTALS_H + 24;
 
-  // ── Notes ─────────────────────────────────────────────────────────────────
+  // ── Notes card ────────────────────────────────────────────────────────────
   if (invoice.notes) {
-    const notesTextH = doc.heightOfString(invoice.notes, { width: CONTENT_W - 20 });
-    const notesBlockH = notesTextH + 50;
+    const notesTextH  = doc.heightOfString(invoice.notes, { width: CONTENT_W - 28 });
+    const notesBlockH = notesTextH + 52;
     curY = ensureSpace(curY, notesBlockH);
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.accent).text('NOTES', MARGIN, curY);
-    hRule(doc, curY + 13, COLORS.accent, MARGIN, 60);
-    curY += 22;
+    drawSectionLabel(doc, 'Notes', MARGIN, curY);
+    curY += 20;
 
-    fillRect(doc, MARGIN, curY, CONTENT_W, notesTextH + 16, COLORS.rowAlt);
-    doc.save().rect(MARGIN, curY, CONTENT_W, notesTextH + 16).lineWidth(0.5).strokeColor(COLORS.border).stroke().restore();
-    doc.font('Helvetica').fontSize(10).fillColor(COLORS.textMid)
-       .text(invoice.notes, MARGIN + 10, curY + 8, { width: CONTENT_W - 20 });
+    const noteCardH = notesTextH + 20;
+    fillRect(doc, MARGIN, curY, CONTENT_W, noteCardH, COLORS.slate50);
+    doc.save().rect(MARGIN, curY, CONTENT_W, noteCardH)
+       .lineWidth(0.5).strokeColor(COLORS.slate200).stroke().restore();
+    fillRect(doc, MARGIN, curY, 3, noteCardH, COLORS.cyan);
+
+    doc.font('Helvetica').fontSize(9.5).fillColor(COLORS.slate600)
+       .text(invoice.notes, MARGIN + 16, curY + 10, { width: CONTENT_W - 28 });
   }
 
   doc.end();
